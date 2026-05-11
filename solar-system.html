@@ -10,7 +10,7 @@
     body {
       background: #000;
       overflow: hidden;
-      font-family: 'Courier New', monospace;
+      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace;
       color: #fff;
     }
 
@@ -41,18 +41,19 @@
     }
 
     #title-block h1 {
-      font-size: 11px;
+      font-size: 14px;
       letter-spacing: 0.35em;
       text-transform: uppercase;
-      color: rgba(200, 220, 255, 0.5);
-      font-weight: 400;
+      color: rgba(200, 220, 255, 0.6);
+      font-weight: 700;
     }
 
     #title-block .sub {
-      font-size: 9px;
+      font-size: 11px;
       letter-spacing: 0.2em;
-      color: rgba(200, 220, 255, 0.25);
+      color: rgba(200, 220, 255, 0.3);
       margin-top: 4px;
+      font-weight: 600;
     }
 
     #status-block {
@@ -60,17 +61,19 @@
     }
 
     #status-block .mode-label {
-      font-size: 9px;
+      font-size: 11px;
       letter-spacing: 0.3em;
-      color: rgba(255, 200, 100, 0.4);
+      color: rgba(255, 200, 100, 0.5);
       text-transform: uppercase;
+      font-weight: 600;
     }
 
     #status-block .mode-value {
-      font-size: 13px;
+      font-size: 16px;
       letter-spacing: 0.15em;
-      color: rgba(255, 220, 140, 0.8);
+      color: rgba(255, 220, 140, 0.9);
       margin-top: 2px;
+      font-weight: 700;
     }
 
     /* Crosshair center */
@@ -103,19 +106,21 @@
     }
 
     #controls-hint {
-      font-size: 9px;
+      font-size: 12px;
       letter-spacing: 0.2em;
-      color: rgba(150, 180, 255, 0.3);
+      color: rgba(150, 180, 255, 0.35);
       text-transform: uppercase;
       line-height: 1.8;
+      font-weight: 600;
     }
 
     #coords {
-      font-size: 9px;
+      font-size: 12px;
       letter-spacing: 0.15em;
-      color: rgba(150, 180, 255, 0.25);
+      color: rgba(150, 180, 255, 0.3);
       text-align: right;
       line-height: 1.8;
+      font-weight: 600;
     }
 
     /* Scan lines overlay for atmosphere */
@@ -165,11 +170,12 @@
     }
 
     #loading .load-title {
-      font-size: 10px;
+      font-size: 14px;
       letter-spacing: 0.5em;
-      color: rgba(200, 220, 255, 0.4);
+      color: rgba(200, 220, 255, 0.5);
       text-transform: uppercase;
       margin-bottom: 32px;
+      font-weight: 700;
     }
 
     #loading-bar-wrap {
@@ -196,10 +202,11 @@
 
     #loading .load-sub {
       margin-top: 20px;
-      font-size: 8px;
+      font-size: 12px;
       letter-spacing: 0.3em;
-      color: rgba(150, 180, 255, 0.25);
+      color: rgba(150, 180, 255, 0.35);
       text-transform: uppercase;
+      font-weight: 600;
     }
     /* ── Planet Detail Panel ───────────────────── */
     #planet-panel {
@@ -212,7 +219,7 @@
       display: flex;
       flex-direction: column;
       padding: 36px 28px 32px;
-      font-family: 'Courier New', monospace;
+      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace;
 
       /* glassmorphism base — accent color applied via JS */
       background: rgba(10, 10, 26, 0.82);
@@ -244,22 +251,24 @@
       background: none;
       border: none;
       color: rgba(200, 210, 255, 0.4);
-      font-family: 'Courier New', monospace;
-      font-size: 9px;
+      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace;
+      font-size: 11px;
       letter-spacing: 0.25em;
       cursor: pointer;
       text-transform: uppercase;
-      padding: 4px 8px;
+      padding: 6px 10px;
+      font-weight: 600;
       transition: color 0.2s;
     }
     #panel-back:hover { color: rgba(255,255,255,0.85); }
 
     #panel-type-badge {
       display: inline-block;
-      font-size: 8px;
+      font-size: 11px;
       letter-spacing: 0.3em;
       text-transform: uppercase;
-      padding: 3px 10px;
+      font-weight: 600;
+      padding: 4px 12px;
       border: 1px solid var(--accent);
       color: var(--accent);
       margin-bottom: 14px;
@@ -271,7 +280,7 @@
       letter-spacing: 0.18em;
       text-transform: uppercase;
       color: #fff;
-      font-weight: 400;
+      font-weight: 700;
       margin-bottom: 8px;
       line-height: 1.1;
     }
@@ -292,18 +301,20 @@
     }
 
     .stat-label {
-      font-size: 8px;
+      font-size: 11px;
       letter-spacing: 0.28em;
       text-transform: uppercase;
-      color: rgba(160, 185, 220, 0.5);
+      color: rgba(160, 185, 220, 0.55);
+      font-weight: 600;
     }
 
     .stat-value {
-      font-size: 11px;
+      font-size: 13px;
       letter-spacing: 0.1em;
       color: rgba(220, 235, 255, 0.9);
       text-align: right;
       max-width: 160px;
+      font-weight: 600;
     }
 
     #panel-divider-2 {
@@ -315,19 +326,21 @@
     }
 
     #panel-funfact-label {
-      font-size: 8px;
+      font-size: 11px;
       letter-spacing: 0.28em;
       text-transform: uppercase;
-      color: rgba(160, 185, 220, 0.5);
+      color: rgba(160, 185, 220, 0.55);
       margin-bottom: 10px;
+      font-weight: 600;
     }
 
     #panel-funfact {
-      font-size: 11px;
+      font-size: 13px;
       letter-spacing: 0.04em;
-      color: rgba(200, 220, 255, 0.75);
+      color: rgba(200, 220, 255, 0.8);
       line-height: 1.7;
       flex: 1;
+      font-weight: 500;
     }
 
     #panel-enter-btn {
@@ -336,10 +349,11 @@
       background: none;
       border: 1px solid var(--accent);
       color: var(--accent);
-      font-family: 'Courier New', monospace;
-      font-size: 10px;
+      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
       letter-spacing: 0.35em;
       text-transform: uppercase;
+      font-weight: 700;
       cursor: pointer;
       width: 100%;
       transition: background 0.25s, color 0.25s;
@@ -372,6 +386,8 @@
   <!-- Three.js canvas -->
   <div id="canvas-container"></div>
 
+  <audio id="bg-music" src="assets/space_music.mp3" loop preload="auto"></audio>
+
   <!-- Atmospheric overlays -->
   <div id="scanlines"></div>
   <div id="vignette"></div>
@@ -387,6 +403,7 @@
         <div class="mode-label">Navigation Mode</div>
         <div class="mode-value" id="mode-display">FREE ROAM</div>
       </div>
+      <button id="music-toggle" style="pointer-events:auto;background:none;border:1px solid rgba(200,220,255,0.15);color:rgba(200,220,255,0.4);font-family:inherit;font-size:16px;letter-spacing:0.2em;cursor:pointer;padding:6px 12px;border-radius:2px;transition:color 0.2s,border-color 0.2s;margin-left:16px;">♪</button>
     </div>
   </div>
 
@@ -1157,8 +1174,8 @@
       const lel = document.createElement('div');
       lel.textContent = pd.name.toUpperCase();
       lel.style.cssText = `
-        position:absolute; font-family:'Courier New',monospace; font-size:9px;
-        letter-spacing:0.25em; color:rgba(180,210,255,0.5); pointer-events:none;
+        position:absolute; font-family:'SF Mono','SFMono-Regular','Fira Code','Consolas','Courier New',monospace; font-size:11px; font-weight:600;
+        letter-spacing:0.25em; color:rgba(180,210,255,0.6); pointer-events:none;
         transform:translateX(-50%); text-shadow:0 0 8px rgba(100,160,255,0.4);
         transition:opacity 0.3s; white-space:nowrap;
       `;
@@ -1461,6 +1478,48 @@
       loading.classList.add('fade-out');
       setTimeout(() => loading.style.display = 'none', 1000);
     }, 1400);
+
+    // ── BACKGROUND MUSIC ──────────────────────────
+    const musicAudio = document.getElementById('bg-music');
+    const musicBtn = document.getElementById('music-toggle');
+    let musicStarted = false;
+
+    function startMusic() {
+      if (musicStarted) return;
+      musicStarted = true;
+      musicAudio.play().catch(() => {});
+    }
+
+    musicBtn.addEventListener('click', () => {
+      if (!musicStarted) {
+        startMusic();
+        musicBtn.textContent = '♫';
+        musicBtn.style.color = 'rgba(200,220,255,0.8)';
+        musicBtn.style.borderColor = 'rgba(200,220,255,0.3)';
+      } else if (musicAudio.paused) {
+        musicAudio.play();
+        musicBtn.textContent = '♫';
+        musicBtn.style.color = 'rgba(200,220,255,0.8)';
+        musicBtn.style.borderColor = 'rgba(200,220,255,0.3)';
+      } else {
+        musicAudio.pause();
+        musicBtn.textContent = '♪';
+        musicBtn.style.color = 'rgba(200,220,255,0.4)';
+        musicBtn.style.borderColor = 'rgba(200,220,255,0.15)';
+      }
+    });
+
+    // Start on first user interaction (browser autoplay policy)
+    const firstInteraction = () => {
+      startMusic();
+      musicBtn.textContent = '♫';
+      musicBtn.style.color = 'rgba(200,220,255,0.8)';
+      musicBtn.style.borderColor = 'rgba(200,220,255,0.3)';
+      document.removeEventListener('click', firstInteraction);
+      document.removeEventListener('keydown', firstInteraction);
+    };
+    document.addEventListener('click', firstInteraction);
+    document.addEventListener('keydown', firstInteraction);
   </script>
 </body>
 </html>

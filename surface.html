@@ -6,81 +6,86 @@
   <title>Planet Surface</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; color: #fff; }
+    body { background: #000; overflow: hidden; font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; color: #fff; }
     #canvas-container { position: fixed; inset: 0; }
     canvas { display: block; width: 100% !important; height: 100% !important; }
 
     #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; z-index: 10; }
     #hud-top { display: flex; justify-content: space-between; align-items: flex-start; padding: 24px 32px; }
-    #title-block h1 { font-size: 11px; letter-spacing: 0.35em; text-transform: uppercase; color: rgba(200, 220, 255, 0.5); font-weight: 400; }
-    #title-block .sub { font-size: 9px; letter-spacing: 0.2em; color: rgba(200, 220, 255, 0.25); margin-top: 4px; }
-    #status-block { text-align: right; }
-    #status-block .mode-label { font-size: 9px; letter-spacing: 0.3em; color: rgba(255, 200, 100, 0.4); text-transform: uppercase; }
-    #status-block .mode-value { font-size: 13px; letter-spacing: 0.15em; color: rgba(255, 220, 140, 0.8); margin-top: 2px; }
+    #title-block h1 { font-size: 14px; letter-spacing: 0.35em; text-transform: uppercase; color: rgba(200, 220, 255, 0.6); font-weight: 700; }
+    #title-block .sub { font-size: 11px; letter-spacing: 0.2em; color: rgba(200, 220, 255, 0.3); margin-top: 4px; font-weight: 600; }
+    #status-block .mode-label { font-size: 11px; letter-spacing: 0.3em; color: rgba(255, 200, 100, 0.5); text-transform: uppercase; font-weight: 600; }
+    #status-block .mode-value { font-size: 16px; letter-spacing: 0.15em; color: rgba(255, 220, 140, 0.9); margin-top: 2px; font-weight: 700; }
 
     #back-to-space {
       position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 15;
       padding: 8px 20px; background: rgba(10, 10, 26, 0.7);
       border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(200, 220, 255, 0.6);
-      font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.25em;
+      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 11px; letter-spacing: 0.25em; font-weight: 600;
       cursor: pointer; text-transform: uppercase; backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px); transition: background 0.2s; pointer-events: auto;
     }
     #back-to-space:hover { background: rgba(30, 30, 60, 0.9); color: rgba(255, 255, 255, 0.9); }
 
     #info-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 20px 32px; display: flex; justify-content: space-between; align-items: flex-end; pointer-events: none; z-index: 10; }
-    #controls-hint { font-size: 9px; letter-spacing: 0.2em; color: rgba(150, 180, 255, 0.3); text-transform: uppercase; line-height: 1.8; }
-    #coords { font-size: 9px; letter-spacing: 0.15em; color: rgba(150, 180, 255, 0.25); text-align: right; line-height: 1.8; }
+    #controls-hint { font-size: 12px; letter-spacing: 0.2em; color: rgba(150, 180, 255, 0.35); text-transform: uppercase; line-height: 1.8; font-weight: 600; }
+    #coords { font-size: 12px; letter-spacing: 0.15em; color: rgba(150, 180, 255, 0.3); text-align: right; line-height: 1.8; font-weight: 600; }
 
     #loading { position: fixed; inset: 0; background: #000010; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.8s ease; }
     #loading.hidden { opacity: 0; pointer-events: none; }
 
-    #build-menu {
-      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+    #hotbar {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 25; display: flex; gap: 4px;
+    }
+    .hb-btn {
+      padding: 10px 18px; min-width: 72px;
+      background: rgba(10, 10, 26, 0.75);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.06);
+      color: rgba(200, 220, 255, 0.5); cursor: pointer;
+      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 10px; letter-spacing: 0.15em; font-weight: 600;
+      text-transform: uppercase; text-align: center; line-height: 1.3;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .hb-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: rgba(200, 220, 255, 0.8); }
+    .hb-btn.active { border-color: rgba(200, 220, 255, 0.35); color: #fff; background: rgba(200, 220, 255, 0.08); }
+    .hb-btn .key { font-size: 9px; color: rgba(150, 180, 255, 0.3); display: block; margin-bottom: 3px; font-weight: 700; }
+    .hb-btn .swatch { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 1px; vertical-align: middle; }
+
+    #action-panel {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
       z-index: 30; display: none;
       background: rgba(10, 10, 26, 0.88);
       backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255,255,255,0.08);
-      padding: 24px 28px 18px;
-      font-family: 'Courier New', monospace;
-      min-width: 340px;
+      padding: 18px 24px 16px;
+      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace;
+      min-width: 300px;
     }
-    #build-menu.open { display: block; }
-    #build-menu-title {
-      font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase;
-      color: rgba(200, 220, 255, 0.5); margin-bottom: 16px; text-align: center;
+    #action-panel.open { display: block; }
+    #action-title { font-size: 12px; letter-spacing: 0.35em; color: rgba(200,220,255,0.55); text-transform: uppercase; margin-bottom: 14px; text-align: center; font-weight: 700; }
+    .action-row { display: flex; gap: 8px; justify-content: center; }
+    .action-btn {
+      padding: 9px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+      color: rgba(200, 220, 255, 0.6); cursor: pointer;
+      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 10px; letter-spacing: 0.2em; font-weight: 600;
+      text-transform: uppercase; transition: background 0.12s, color 0.12s;
     }
-    .build-option {
-      display: flex; justify-content: space-between; align-items: center;
-      width: 100%; padding: 10px 14px; margin-bottom: 6px;
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-      color: rgba(200, 220, 255, 0.7); cursor: pointer;
-      font-family: 'Courier New', monospace; text-align: left;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .build-option:hover {
-      background: rgba(255,255,255,0.08);
-      border-color: rgba(200, 220, 255, 0.25);
-      color: rgba(255,255,255,0.95);
-    }
-    .build-option .name { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
-    .build-option .desc { font-size: 8px; letter-spacing: 0.15em; color: rgba(150, 180, 255, 0.4); margin-top: 2px; }
-    .build-option .color-swatch { width: 12px; height: 12px; flex-shrink: 0; border-radius: 1px; }
-    #build-menu-cancel {
-      display: block; margin: 10px auto 0;
-      background: none; border: none;
-      color: rgba(150, 180, 255, 0.35); cursor: pointer;
-      font-family: 'Courier New', monospace; font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase;
-      padding: 6px 12px; transition: color 0.2s;
-    }
-    #build-menu-cancel:hover { color: rgba(255,255,255,0.7); }
+    .action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
+    .action-btn:disabled { opacity: 0.3; cursor: default; color: rgba(150, 180, 255, 0.25); }
+    #action-hp-wrap { margin-bottom: 10px; }
+    #action-hp-bar { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+    #action-hp-fill { height: 100%; width: 100%; background: #44cc88; transition: width 0.3s; border-radius: 2px; }
+    #action-hp-label { font-size: 10px; letter-spacing: 0.2em; color: rgba(200,220,255,0.35); text-align: center; margin-top: 5px; font-weight: 600; }
+    #action-tier-line { font-size: 10px; letter-spacing: 0.2em; color: rgba(200,220,255,0.3); text-align: center; margin-bottom: 12px; font-weight: 600; }
   </style>
 </head>
 <body>
 
   <div id="loading">
-    <div style="font-size:10px;letter-spacing:0.5em;color:rgba(200,220,255,0.4);text-transform:uppercase;margin-bottom:32px;">Generating Terrain</div>
-    <div style="font-size:8px;letter-spacing:0.3em;color:rgba(150,180,255,0.25);text-transform:uppercase;" id="loading-name"></div>
+    <div style="font-size:14px;letter-spacing:0.5em;color:rgba(200,220,255,0.5);text-transform:uppercase;margin-bottom:32px;font-weight:700;">Generating Terrain</div>
+    <div style="font-size:12px;letter-spacing:0.3em;color:rgba(150,180,255,0.35);text-transform:uppercase;font-weight:600;" id="loading-name"></div>
   </div>
 
   <div id="canvas-container"></div>
@@ -100,17 +105,31 @@
 
   <button id="back-to-space">Back to Space</button>
 
-  <div id="build-menu">
-    <div id="build-menu-title">Select Structure</div>
-    <div id="build-options"></div>
-    <button id="build-menu-cancel">Cancel</button>
+  <div id="action-panel">
+    <div id="action-title"></div>
+    <div id="action-tier-line"></div>
+    <div id="action-hp-wrap">
+      <div id="action-hp-bar"><div id="action-hp-fill"></div></div>
+      <div id="action-hp-label">HP 100/100</div>
+    </div>
+    <div class="action-row">
+      <button class="action-btn" id="action-upgrade" disabled>Upgrade —</button>
+      <button class="action-btn" id="action-rotate">Rotate</button>
+      <button class="action-btn" id="action-dismantle">Dismantle</button>
+      <button class="action-btn" id="action-repair">Repair</button>
+    </div>
   </div>
+
+  <div id="hotbar"></div>
 
   <div id="info-bar">
     <div id="controls-hint">
       Arrows · Move<br>
       Mouse · Aim<br>
-      Click · Build<br>
+      <span id="hint-keys">1-5</span> · Select building<br>
+      Click · Place<br>
+      R · Rotate<br>
+      Right Click · Deselect<br>
       V · Toggle Cam<br>
       ESC · Back to Space
     </div>
@@ -338,6 +357,8 @@
 
     function placeFoundation(cx, cz) {
       if (foundations.some(f => f.cx === cx && f.cz === cz)) return;
+      const pc = getCell(player.position.x, player.position.z);
+      if (pc.cx === cx && pc.cz === cz) return;
       const center = getCellCenter(cx, cz);
 
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.1, CELL), foundationMat);
@@ -357,103 +378,452 @@
       edge.position.set(center.x, 0.08, center.z);
       scene.add(edge);
 
-      foundations.push({ cx, cz, mesh, edge, building: null, buildingMesh: null });
+      const collider = aabbFromBox(center.x, center.z, CELL / 2, CELL / 2, 0);
+      foundations.push({ cx, cz, mesh, edge, building: null, buildingMesh: null, collider, tier: 0, hp: 100, maxHp: 100 });
+    }
+
+    function canPlaceAt(cx, cz) {
+      if (foundations.some(f => f.cx === cx && f.cz === cz && f.building)) return false;
+      const pc = getCell(player.position.x, player.position.z);
+      if (pc.cx === cx && pc.cz === cz) return false;
+      return true;
     }
 
     // ── BUILDING TYPES ───────────────────────────
     const BUILDING_TYPES = {
-      wall:     { name: 'Wall',          color: 0x8a9aaa, height: 1.5, desc: 'Perimeter barrier' },
-      turret:   { name: 'Turret',        color: 0xcc4444, height: 1.2, desc: 'Auto-targeting defense' },
-      solar:    { name: 'Solar Panel',   color: 0x44aacc, height: 0.3, desc: 'Power generation' },
-      storage:  { name: 'Storage',       color: 0xccaa44, height: 1.0, desc: 'Resource stockpile' },
-      workshop: { name: 'Workshop',      color: 0xaa88cc, height: 1.0, desc: 'Crafting station' },
+      wall:     { name: 'Wall',          color: 0x8a9aaa, desc: 'Perimeter barrier' },
+      turret:   { name: 'Turret',        color: 0xcc4444, desc: 'Auto-targeting defense' },
+      solar:    { name: 'Solar Panel',   color: 0x44aacc, desc: 'Power generation' },
+      storage:  { name: 'Storage',       color: 0xccaa44, desc: 'Resource stockpile' },
+      workshop: { name: 'Workshop',      color: 0xaa88cc, desc: 'Crafting station' },
     };
 
-    // ── BUILD MENU ───────────────────────────────
-    let buildMenuOpen = false;
-    let buildMenuTarget = null;
+    const UPGRADE_TIERS = {
+      wall: [
+        { name: 'Wall', color: 0x8a9aaa, scale: 1.0 },
+        { name: 'Reinforced Wall', color: 0x7a8a9a, scale: 1.25 },
+        { name: 'Fortress Wall', color: 0x5a6a7a, scale: 1.5 },
+      ],
+      turret: [
+        { name: 'Turret', color: 0xcc4444, scale: 1.0 },
+        { name: 'Cannon', color: 0xdd5555, scale: 1.25 },
+        { name: 'Artillery', color: 0xee6666, scale: 1.5 },
+      ],
+      solar: [
+        { name: 'Solar Panel', color: 0x44aacc, scale: 1.0 },
+        { name: 'Solar Array', color: 0x55bbdd, scale: 1.3 },
+        { name: 'Solar Farm', color: 0x66ccee, scale: 1.6 },
+      ],
+      storage: [
+        { name: 'Storage', color: 0xccaa44, scale: 1.0 },
+        { name: 'Warehouse', color: 0xddbb55, scale: 1.3 },
+        { name: 'Depot', color: 0xeecc66, scale: 1.6 },
+      ],
+      workshop: [
+        { name: 'Workshop', color: 0xaa88cc, scale: 1.0 },
+        { name: 'Lab', color: 0xbb99dd, scale: 1.25 },
+        { name: 'Research Center', color: 0xccaaee, scale: 1.5 },
+      ],
+    };
 
-    const buildMenuEl = document.getElementById('build-menu');
-    const buildOptionsEl = document.getElementById('build-options');
+    const PLANET_BUILDS = {
+      Mercury: ['wall', 'turret', 'storage', 'workshop'],
+      Venus:   ['wall', 'turret', 'solar', 'storage', 'workshop'],
+      Earth:   ['wall', 'turret', 'solar', 'storage', 'workshop'],
+      Mars:    ['wall', 'turret', 'storage', 'workshop'],
+      Jupiter: ['wall', 'turret', 'storage'],
+      Saturn:  ['wall', 'turret', 'solar', 'storage'],
+      Uranus:  ['wall', 'storage', 'workshop'],
+      Neptune: ['wall', 'storage', 'workshop'],
+    };
 
-    function openBuildMenu(entry) {
-      buildMenuTarget = entry;
-      buildMenuOpen = true;
-      buildOptionsEl.innerHTML = '';
-      Object.entries(BUILDING_TYPES).forEach(([key, bt]) => {
+    let typeKeys = PLANET_BUILDS[PLANET_NAME] || Object.keys(BUILDING_TYPES);
+
+    // ── COLLISION ────────────────────────────────
+    const buildingColliders = [];
+    const PLAYER_RADIUS = 0.3;
+
+    function aabbFromBox(cx, cz, hx, hz, ry) {
+      const cos = Math.round(Math.cos(ry));
+      const sin = Math.round(Math.sin(ry));
+      const whx = Math.abs(hx * cos) + Math.abs(hz * sin);
+      const whz = Math.abs(hx * sin) + Math.abs(hz * cos);
+      return { minX: cx - whx, maxX: cx + whx, minZ: cz - whz, maxZ: cz + whz };
+    }
+
+    function collides(px, pz, r, box) {
+      const cx = Math.max(box.minX, Math.min(px, box.maxX));
+      const cz = Math.max(box.minZ, Math.min(pz, box.maxZ));
+      const dx = px - cx, dz = pz - cz;
+      return dx * dx + dz * dz < r * r;
+    }
+
+    function anyCollision(px, pz) {
+      for (const f of foundations) {
+        if (f.collider && collides(px, pz, PLAYER_RADIUS, f.collider)) return true;
+      }
+      for (const c of buildingColliders) {
+        if (collides(px, pz, PLAYER_RADIUS, c)) return true;
+      }
+      return false;
+    }
+
+    // ── BUILDING TARGETS (for click detection) ────
+    const buildingTargets = [];
+
+    // ── HOTBAR + DIRECT PLACEMENT ────────────────
+    let selectedBuilding = null;
+    let buildRotation = 0;
+    let placementGhost = null;
+
+    const hotbarEl = document.getElementById('hotbar');
+
+    document.getElementById('hint-keys').textContent = '1-' + typeKeys.length;
+
+    function buildHotbar() {
+      hotbarEl.innerHTML = '';
+      typeKeys.forEach((key, i) => {
+        const bt = BUILDING_TYPES[key];
         const btn = document.createElement('button');
-        btn.className = 'build-option';
-        btn.innerHTML = `
-          <div>
-            <div class="name">${bt.name}</div>
-            <div class="desc">${bt.desc}</div>
-          </div>
-          <div class="color-swatch" style="background:#${bt.color.toString(16).padStart(6,'0')}"></div>
-        `;
-        btn.addEventListener('click', () => buildOnFoundation(entry, key));
-        buildOptionsEl.appendChild(btn);
+        btn.className = 'hb-btn';
+        btn.dataset.type = key;
+        btn.innerHTML = `<span class="key">${i + 1}</span><span class="swatch" style="background:#${bt.color.toString(16).padStart(6,'0')}"></span>${bt.name}`;
+        btn.addEventListener('click', () => selectBuilding(key));
+        hotbarEl.appendChild(btn);
       });
-      buildMenuEl.classList.add('open');
+    }
+    buildHotbar();
+
+    function selectBuilding(key) {
+      if (selectedBuilding === key) { deselectBuilding(); return; }
+      selectedBuilding = key;
+      buildRotation = 0;
+      document.querySelectorAll('.hb-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.type === key)
+      );
     }
 
-    function closeBuildMenu() {
-      buildMenuOpen = false;
-      buildMenuTarget = null;
-      buildMenuEl.classList.remove('open');
+    function deselectBuilding() {
+      selectedBuilding = null;
+      buildRotation = 0;
+      document.querySelectorAll('.hb-btn').forEach(b => b.classList.remove('active'));
+      if (placementGhost) {
+        placementGhost.forEach(m => scene.remove(m));
+        placementGhost = null;
+      }
     }
 
-    document.getElementById('build-menu-cancel').addEventListener('click', closeBuildMenu);
+    function rotateBuilding() {
+      if (!selectedBuilding) return;
+      buildRotation = (buildRotation + 1) % 4;
+      if (hoveredCell) updateGhost(hoveredCell.cx, hoveredCell.cz);
+    }
 
-    function buildOnFoundation(entry, typeKey) {
-      if (entry.building) return;
-      const bt = BUILDING_TYPES[typeKey];
-      if (!bt) return;
-      closeBuildMenu();
-
-      // Remove foundation slab
-      scene.remove(entry.mesh);
-      scene.remove(entry.edge);
-      const idx = foundationTargets.indexOf(entry.mesh);
-      if (idx !== -1) foundationTargets.splice(idx, 1);
-
-      const center = getCellCenter(entry.cx, entry.cz);
-      const mat = new THREE.MeshLambertMaterial({ color: bt.color });
-      let bMesh;
+    function makeBuildingMesh(typeKey, color, transparent, opacity, scale) {
+      const s = scale || 1;
+      const mat = new THREE.MeshLambertMaterial({ color, transparent, opacity });
+      let meshes = [];
 
       if (typeKey === 'wall') {
-        bMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, bt.height, CELL - 0.2), mat);
-        bMesh.position.set(center.x, bt.height / 2, center.z);
+        const m = new THREE.Mesh(new THREE.BoxGeometry((CELL - 0.2) * s, 3.0 * s, (CELL - 0.2) * s), mat);
+        m.position.set(0, 1.5 * s, 0);
+        meshes.push(m);
       } else if (typeKey === 'turret') {
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.5, 0.3, 8), mat);
-        base.position.set(center.x, 0.15, center.z);
-        scene.add(base);
-        const topMat = new THREE.MeshLambertMaterial({ color: 0xdd6666 });
-        const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.8), topMat);
-        top.position.set(center.x, 0.6, center.z);
-        scene.add(top);
-        entry.building = typeKey;
-        entry.buildingMeshes = [base, top];
-        entry.building = typeKey;
-        return;
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(2 * s, 2.5 * s, 0.3 * s, 8), mat);
+        base.position.set(0, 0.15 * s, 0);
+        meshes.push(base);
+        const topMat = new THREE.MeshLambertMaterial({ color: 0xdd6666, transparent, opacity });
+        const top = new THREE.Mesh(new THREE.BoxGeometry(0.8 * s, 0.6 * s, 0.8 * s), topMat);
+        top.position.set(0, 0.6 * s, 0);
+        meshes.push(top);
       } else if (typeKey === 'solar') {
-        bMesh = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, 0.1, CELL * 0.6), mat);
-        bMesh.position.set(center.x, 0.05, center.z);
-        bMesh.rotation.z = 0.3;
-      } else if (typeKey === 'storage') {
-        bMesh = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, bt.height, CELL - 1), mat);
-        bMesh.position.set(center.x, bt.height / 2, center.z);
+        const m = new THREE.Mesh(new THREE.BoxGeometry((CELL - 1) * s, 0.1 * s, CELL * 0.6 * s), mat);
+        m.position.set(0, 0.05 * s, 0);
+        m.rotation.z = 0.3;
+        meshes.push(m);
       } else {
-        bMesh = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, bt.height, CELL - 1), mat);
-        bMesh.position.set(center.x, bt.height / 2, center.z);
+        const m = new THREE.Mesh(new THREE.BoxGeometry((CELL - 1) * s, 1.0 * s, (CELL - 1) * s), mat);
+        m.position.set(0, 0.5 * s, 0);
+        meshes.push(m);
       }
 
-      if (bMesh) {
-        bMesh.castShadow = true;
-        bMesh.receiveShadow = true;
-        scene.add(bMesh);
-        entry.buildingMesh = bMesh;
+      meshes.forEach(m => { m.castShadow = true; m.receiveShadow = true; });
+      return meshes;
+    }
+
+    function updateGhost(cx, cz) {
+      if (placementGhost) {
+        placementGhost.forEach(m => scene.remove(m));
+        placementGhost = null;
       }
+      if (!selectedBuilding) return;
+      const valid = canPlaceAt(cx, cz);
+      const color = valid ? 0x44ff88 : 0xff4444;
+      placementGhost = makeBuildingMesh(selectedBuilding, color, true, valid ? 0.3 : 0.4);
+      const center = getCellCenter(cx, cz);
+      placementGhost.forEach(m => {
+        m.position.x += center.x;
+        m.position.z += center.z;
+        if (buildRotation !== 0) {
+          const ox = m.position.x - center.x;
+          const oz = m.position.z - center.z;
+          const r = buildRotation * Math.PI / 2;
+          const nx = ox * Math.cos(r) - oz * Math.sin(r);
+          const nz = ox * Math.sin(r) + oz * Math.cos(r);
+          m.position.x = center.x + nx;
+          m.position.z = center.z + nz;
+          m.rotation.y += r;
+        }
+        scene.add(m);
+      });
+    }
+
+    function getBuildingAABBs(cx, cz, typeKey, rotation) {
+      const ry = rotation * Math.PI / 2;
+      const halfCell = (CELL - 1) / 2;
+      if (typeKey === 'wall') return [aabbFromBox(cx, cz, (CELL - 0.2) / 2, (CELL - 0.2) / 2, 0)];
+      if (typeKey === 'turret') return [
+        aabbFromBox(cx, cz, 2.5, 2.5, 0),
+        aabbFromBox(cx, cz, 0.4, 0.4, ry),
+      ];
+      if (typeKey === 'solar') return [aabbFromBox(cx, cz, halfCell, CELL * 0.3, ry)];
+      return [aabbFromBox(cx, cz, halfCell, halfCell, ry)];
+    }
+
+    function placeBuilding(cx, cz, typeKey, rotation) {
+      if (foundations.some(f => f.cx === cx && f.cz === cz && f.building)) return;
+      const pc = getCell(player.position.x, player.position.z);
+      if (pc.cx === cx && pc.cz === cz) return;
+
+      let entry = foundations.find(f => f.cx === cx && f.cz === cz);
+      if (entry) {
+        if (entry.building) return;
+        // Upgrade existing foundation
+        scene.remove(entry.mesh);
+        scene.remove(entry.edge);
+        const mi = foundationTargets.indexOf(entry.mesh);
+        if (mi !== -1) foundationTargets.splice(mi, 1);
+        entry.collider = null;
+      } else {
+        // Auto-place foundation under building
+        placeFoundation(cx, cz);
+        entry = foundations[foundations.length - 1];
+        // Remove the foundation collider since building replaces it
+        entry.collider = null;
+      }
+
+      const tiers = UPGRADE_TIERS[typeKey];
+      const tier = 0;
+      const tDef = tiers ? tiers[tier] : null;
+      const tColor = tDef ? tDef.color : BUILDING_TYPES[typeKey].color;
+      const tScale = tDef ? tDef.scale : 1;
+      const center = getCellCenter(cx, cz);
+      const meshes = makeBuildingMesh(typeKey, tColor, false, 1, tScale);
+      meshes.forEach(m => {
+        m.position.x += center.x;
+        m.position.z += center.z;
+        if (rotation !== 0) {
+          const ox = m.position.x - center.x;
+          const oz = m.position.z - center.z;
+          const r = rotation * Math.PI / 2;
+          const nx = ox * Math.cos(r) - oz * Math.sin(r);
+          const nz = ox * Math.sin(r) + oz * Math.cos(r);
+          m.position.x = center.x + nx;
+          m.position.z = center.z + nz;
+          m.rotation.y += r;
+        }
+        scene.add(m);
+      });
+
+      const aabbs = getBuildingAABBs(center.x, center.z, typeKey, rotation);
+      aabbs.forEach(a => buildingColliders.push(a));
+
+      meshes.forEach(m => buildingTargets.push(m));
+
       entry.building = typeKey;
+      entry.rotation = rotation;
+      entry.buildingMeshes = meshes;
+      entry.colliderAABBs = aabbs;
+      entry.tier = 0;
+      entry.hp = 100;
+      entry.maxHp = 100;
+      saveBuildings();
+    }
+
+    // ── ACTION PANEL ─────────────────────────────
+    let actionTarget = null;
+    const actionPanelEl = document.getElementById('action-panel');
+    const actionTitleEl = document.getElementById('action-title');
+    const actionTierEl = document.getElementById('action-tier-line');
+    const actionHpFillEl = document.getElementById('action-hp-fill');
+    const actionHpLabelEl = document.getElementById('action-hp-label');
+    const actionUpgradeEl = document.getElementById('action-upgrade');
+    const actionRotateEl = document.getElementById('action-rotate');
+    const actionDismantleEl = document.getElementById('action-dismantle');
+    const actionRepairEl = document.getElementById('action-repair');
+
+    function openActionPanel(entry) {
+      if (selectedBuilding) deselectBuilding();
+      actionTarget = entry;
+      const tiers = entry.building ? UPGRADE_TIERS[entry.building] : null;
+      const tier = entry.tier || 0;
+      const tDef = tiers ? tiers[tier] : null;
+      const name = tDef ? tDef.name : (entry.building ? BUILDING_TYPES[entry.building]?.name || entry.building : 'Foundation');
+      actionTitleEl.textContent = name.toUpperCase();
+      actionTierEl.textContent = tiers ? `Tier ${tier + 1} / ${tiers.length}` : '';
+      const hp = entry.hp || 0;
+      const maxHp = entry.maxHp || 100;
+      const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+      actionHpFillEl.style.width = pct + '%';
+      actionHpFillEl.style.background = pct > 60 ? '#44cc88' : pct > 30 ? '#ccaa44' : '#cc4444';
+      actionHpLabelEl.textContent = `HP ${Math.round(hp)}/${maxHp}`;
+      const nextTier = tiers ? tiers[tier + 1] : null;
+      if (nextTier) {
+        actionUpgradeEl.disabled = false;
+        actionUpgradeEl.textContent = `Upgrade ${nextTier.name}`;
+      } else {
+        actionUpgradeEl.disabled = true;
+        actionUpgradeEl.textContent = entry.building ? 'Max Tier' : 'Upgrade —';
+      }
+      actionRepairEl.disabled = hp >= maxHp;
+      actionPanelEl.classList.add('open');
+    }
+
+    function closeActionPanel() {
+      actionTarget = null;
+      actionPanelEl.classList.remove('open');
+    }
+
+    actionRotateEl.addEventListener('click', () => {
+      if (!actionTarget || !actionTarget.building) return;
+      const r = ((actionTarget.rotation || 0) + 1) % 4;
+      const center = getCellCenter(actionTarget.cx, actionTarget.cz);
+      (actionTarget.buildingMeshes || []).forEach(m => {
+        const ox = m.position.x - center.x;
+        const oz = m.position.z - center.z;
+        const nx = ox * Math.cos(Math.PI / 2) - oz * Math.sin(Math.PI / 2);
+        const nz = ox * Math.sin(Math.PI / 2) + oz * Math.cos(Math.PI / 2);
+        m.position.x = center.x + nx;
+        m.position.z = center.z + nz;
+        m.rotation.y += Math.PI / 2;
+      });
+      (actionTarget.colliderAABBs || []).forEach(a => {
+        const ci = buildingColliders.indexOf(a);
+        if (ci !== -1) buildingColliders.splice(ci, 1);
+      });
+      actionTarget.rotation = r;
+      const newAABBs = getBuildingAABBs(center.x, center.z, actionTarget.building, r);
+      newAABBs.forEach(a => buildingColliders.push(a));
+      actionTarget.colliderAABBs = newAABBs;
+    });
+
+    actionUpgradeEl.addEventListener('click', () => {
+      if (!actionTarget || !actionTarget.building) return;
+      const entry = actionTarget;
+      const tiers = UPGRADE_TIERS[entry.building];
+      if (!tiers || entry.tier >= tiers.length - 1) return;
+      const nextTier = entry.tier + 1;
+      const tDef = tiers[nextTier];
+      (entry.buildingMeshes || []).forEach(m => {
+        scene.remove(m);
+        const mi = buildingTargets.indexOf(m);
+        if (mi !== -1) buildingTargets.splice(mi, 1);
+      });
+      const center = getCellCenter(entry.cx, entry.cz);
+      const meshes = makeBuildingMesh(entry.building, tDef.color, false, 1, tDef.scale);
+      meshes.forEach(m => {
+        m.position.x += center.x;
+        m.position.z += center.z;
+        if (entry.rotation) {
+          const ox = m.position.x - center.x;
+          const oz = m.position.z - center.z;
+          const r = entry.rotation * Math.PI / 2;
+          m.position.x = center.x + ox * Math.cos(r) - oz * Math.sin(r);
+          m.position.z = center.z + ox * Math.sin(r) + oz * Math.cos(r);
+          m.rotation.y += r;
+        }
+        scene.add(m);
+      });
+      entry.buildingMeshes = meshes;
+      meshes.forEach(m => buildingTargets.push(m));
+      entry.tier = nextTier;
+      openActionPanel(entry);
+      saveBuildings();
+    });
+
+    actionDismantleEl.addEventListener('click', () => {
+      if (!actionTarget) return;
+      closeActionPanel();
+      const entry = actionTarget;
+      // Remove building meshes + targets
+      (entry.buildingMeshes || []).forEach(m => {
+        scene.remove(m);
+        const mi = buildingTargets.indexOf(m);
+        if (mi !== -1) buildingTargets.splice(mi, 1);
+      });
+      (entry.colliderAABBs || []).forEach(a => {
+        const ci = buildingColliders.indexOf(a);
+        if (ci !== -1) buildingColliders.splice(ci, 1);
+      });
+      entry.building = null;
+      entry.buildingMeshes = null;
+      entry.rotation = 0;
+      // Restore foundation
+      const center = getCellCenter(entry.cx, entry.cz);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.1, CELL), foundationMat);
+      mesh.position.set(center.x, 0.02, center.z);
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      foundationTargets.push(mesh);
+      const edgePts = [
+        new THREE.Vector3(-hh, 0, -hh), new THREE.Vector3(hh, 0, -hh),
+        new THREE.Vector3(hh, 0,  hh), new THREE.Vector3(-hh, 0,  hh),
+        new THREE.Vector3(-hh, 0, -hh),
+      ];
+      const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePts);
+      const edge = new THREE.Line(edgeGeo, foundationEdgeMat);
+      edge.rotation.x = -Math.PI / 2;
+      edge.position.set(center.x, 0.08, center.z);
+      scene.add(edge);
+      entry.mesh = mesh;
+      entry.edge = edge;
+      entry.collider = aabbFromBox(center.x, center.z, CELL / 2, CELL / 2, 0);
+      saveBuildings();
+    });
+
+    actionRepairEl.addEventListener('click', () => {
+      if (!actionTarget || !actionTarget.building) return;
+      const entry = actionTarget;
+      if (entry.hp >= entry.maxHp) return;
+      entry.hp = Math.min(entry.maxHp, (entry.hp || 0) + 50);
+      openActionPanel(entry);
+      saveBuildings();
+    });
+
+    // ── SAVE / LOAD ──────────────────────────────
+    function saveBuildings() {
+      const data = [];
+      for (const f of foundations) {
+        if (!f.building) continue;
+        data.push({ cx: f.cx, cz: f.cz, building: f.building, rotation: f.rotation || 0, tier: f.tier || 0, hp: f.hp || 100 });
+      }
+      try { localStorage.setItem('safayi_' + PLANET_NAME, JSON.stringify(data)); } catch(e) {}
+    }
+
+    function loadBuildings() {
+      let raw;
+      try { raw = localStorage.getItem('safayi_' + PLANET_NAME); } catch(e) {}
+      if (!raw) return;
+      let data;
+      try { data = JSON.parse(raw); } catch(e) {}
+      if (!data) return;
+      for (const d of data) {
+        if (!d.building) continue;
+        placeBuilding(d.cx, d.cz, d.building, d.rotation || 0);
+        const entry = foundations[foundations.length - 1];
+        if (entry) { entry.tier = d.tier || 0; entry.hp = d.hp || 100; }
+      }
+      saveBuildings();
     }
 
     // ── PLAYER ───────────────────────────────────
@@ -526,10 +896,17 @@
         document.getElementById('mode-display').textContent =
           state.mode.toUpperCase().replace('-', ' ');
       }
+      if (e.code === 'KeyR' && selectedBuilding) {
+        rotateBuilding();
+      }
       if (e.code === 'Escape') {
-        if (buildMenuOpen) { closeBuildMenu(); return; }
+        if (selectedBuilding) { deselectBuilding(); return; }
+        if (actionTarget) { closeActionPanel(); return; }
         window.location.href = 'solar-system.html';
       }
+      // Hotbar shortcuts 1-5
+      const num = parseInt(e.code.replace('Digit', ''));
+      if (num >= 1 && num <= typeKeys.length) selectBuilding(typeKeys[num - 1]);
     });
     document.addEventListener('keyup', e => { state.keys[e.code] = false; });
 
@@ -552,6 +929,8 @@
         hoverOutline.visible = true;
         hoveredCell = cell;
         document.getElementById('pos-cell').textContent = `Cell: ${cell.cx}, ${cell.cz}`;
+
+        if (selectedBuilding) updateGhost(cell.cx, cell.cz);
       }
     });
 
@@ -559,21 +938,36 @@
     const clickMouse = new THREE.Vector2();
 
     renderer.domElement.addEventListener('click', e => {
-      if (buildMenuOpen) return;
+      if (selectedBuilding && hoveredCell) {
+        placeBuilding(hoveredCell.cx, hoveredCell.cz, selectedBuilding, buildRotation);
+        return;
+      }
+
       clickMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       clickMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       clickRay.setFromCamera(clickMouse, camera);
 
-      const hits = clickRay.intersectObjects(foundationTargets);
-      if (hits.length > 0) {
-        const hitMesh = hits[0].object;
-        const entry = foundations.find(f => f.mesh === hitMesh);
-        if (entry && !entry.building) {
-          openBuildMenu(entry);
-          return;
-        }
+      const buildingHits = clickRay.intersectObjects(buildingTargets);
+      if (buildingHits.length > 0) {
+        const hitMesh = buildingHits[0].object;
+        const entry = foundations.find(f => f.buildingMeshes && f.buildingMeshes.includes(hitMesh));
+        if (entry) { openActionPanel(entry); return; }
       }
-      if (hoveredCell) placeFoundation(hoveredCell.cx, hoveredCell.cz);
+
+      const foundationHits = clickRay.intersectObjects(foundationTargets);
+      if (foundationHits.length > 0) {
+        const hitMesh = foundationHits[0].object;
+        const entry = foundations.find(f => f.mesh === hitMesh);
+        if (entry && !entry.building) { openActionPanel(entry); return; }
+      }
+
+      if (actionTarget) closeActionPanel();
+    });
+
+    renderer.domElement.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (selectedBuilding) deselectBuilding();
+      else if (actionTarget) closeActionPanel();
     });
 
     renderer.domElement.addEventListener('wheel', e => {
@@ -613,8 +1007,15 @@
       if (playerObj.isMoving) {
         const inv = speed / Math.sqrt(len2);
         const limit = HALF - 3;
-        player.position.x = Math.max(-limit, Math.min(limit, player.position.x + mx * inv));
-        player.position.z = Math.max(-limit, Math.min(limit, player.position.z + mz * inv));
+        const nx = player.position.x + mx * inv;
+        const nz = player.position.z + mz * inv;
+        // Per-axis collision against actual mesh shapes
+        const px = !anyCollision(nx, player.position.z)
+          ? Math.max(-limit, Math.min(limit, nx)) : player.position.x;
+        const pz = !anyCollision(player.position.x, nz)
+          ? Math.max(-limit, Math.min(limit, nz)) : player.position.z;
+        player.position.x = px;
+        player.position.z = pz;
         playerObj.animTime += dt * 8;
       } else {
         playerObj.animTime = 0;
@@ -692,7 +1093,10 @@
     });
 
     // ── DISMISS LOADING ──────────────────────────
-    setTimeout(() => document.getElementById('loading').classList.add('hidden'), 200);
+    setTimeout(() => {
+      document.getElementById('loading').classList.add('hidden');
+      loadBuildings();
+    }, 200);
   </script>
 </body>
 </html>
