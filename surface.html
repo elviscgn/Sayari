@@ -34,6 +34,46 @@
 
     #loading { position: fixed; inset: 0; background: #000010; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.8s ease; }
     #loading.hidden { opacity: 0; pointer-events: none; }
+
+    #build-menu {
+      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+      z-index: 30; display: none;
+      background: rgba(10, 10, 26, 0.88);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 24px 28px 18px;
+      font-family: 'Courier New', monospace;
+      min-width: 340px;
+    }
+    #build-menu.open { display: block; }
+    #build-menu-title {
+      font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase;
+      color: rgba(200, 220, 255, 0.5); margin-bottom: 16px; text-align: center;
+    }
+    .build-option {
+      display: flex; justify-content: space-between; align-items: center;
+      width: 100%; padding: 10px 14px; margin-bottom: 6px;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+      color: rgba(200, 220, 255, 0.7); cursor: pointer;
+      font-family: 'Courier New', monospace; text-align: left;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .build-option:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(200, 220, 255, 0.25);
+      color: rgba(255,255,255,0.95);
+    }
+    .build-option .name { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
+    .build-option .desc { font-size: 8px; letter-spacing: 0.15em; color: rgba(150, 180, 255, 0.4); margin-top: 2px; }
+    .build-option .color-swatch { width: 12px; height: 12px; flex-shrink: 0; border-radius: 1px; }
+    #build-menu-cancel {
+      display: block; margin: 10px auto 0;
+      background: none; border: none;
+      color: rgba(150, 180, 255, 0.35); cursor: pointer;
+      font-family: 'Courier New', monospace; font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase;
+      padding: 6px 12px; transition: color 0.2s;
+    }
+    #build-menu-cancel:hover { color: rgba(255,255,255,0.7); }
   </style>
 </head>
 <body>
@@ -60,10 +100,17 @@
 
   <button id="back-to-space">Back to Space</button>
 
+  <div id="build-menu">
+    <div id="build-menu-title">Select Structure</div>
+    <div id="build-options"></div>
+    <button id="build-menu-cancel">Cancel</button>
+  </div>
+
   <div id="info-bar">
     <div id="controls-hint">
       Arrows · Move<br>
       Mouse · Aim<br>
+      Click · Build<br>
       V · Toggle Cam<br>
       ESC · Back to Space
     </div>
@@ -279,6 +326,136 @@
 
     let hoveredCell = null;
 
+    // ── FOUNDATIONS ──────────────────────────────
+    const foundations = [];
+    const foundationTargets = [];
+    const foundationMat = new THREE.MeshLambertMaterial({
+      color: '#88ccff', transparent: true, opacity: 0.35, depthWrite: false,
+    });
+    const foundationEdgeMat = new THREE.LineBasicMaterial({
+      color: '#88ccff', transparent: true, opacity: 0.6, depthWrite: false,
+    });
+
+    function placeFoundation(cx, cz) {
+      if (foundations.some(f => f.cx === cx && f.cz === cz)) return;
+      const center = getCellCenter(cx, cz);
+
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.1, CELL), foundationMat);
+      mesh.position.set(center.x, 0.02, center.z);
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      foundationTargets.push(mesh);
+
+      const edgePts = [
+        new THREE.Vector3(-hh, 0, -hh), new THREE.Vector3(hh, 0, -hh),
+        new THREE.Vector3(hh, 0,  hh), new THREE.Vector3(-hh, 0,  hh),
+        new THREE.Vector3(-hh, 0, -hh),
+      ];
+      const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePts);
+      const edge = new THREE.Line(edgeGeo, foundationEdgeMat);
+      edge.rotation.x = -Math.PI / 2;
+      edge.position.set(center.x, 0.08, center.z);
+      scene.add(edge);
+
+      foundations.push({ cx, cz, mesh, edge, building: null, buildingMesh: null });
+    }
+
+    // ── BUILDING TYPES ───────────────────────────
+    const BUILDING_TYPES = {
+      wall:     { name: 'Wall',          color: 0x8a9aaa, height: 1.5, desc: 'Perimeter barrier' },
+      turret:   { name: 'Turret',        color: 0xcc4444, height: 1.2, desc: 'Auto-targeting defense' },
+      solar:    { name: 'Solar Panel',   color: 0x44aacc, height: 0.3, desc: 'Power generation' },
+      storage:  { name: 'Storage',       color: 0xccaa44, height: 1.0, desc: 'Resource stockpile' },
+      workshop: { name: 'Workshop',      color: 0xaa88cc, height: 1.0, desc: 'Crafting station' },
+    };
+
+    // ── BUILD MENU ───────────────────────────────
+    let buildMenuOpen = false;
+    let buildMenuTarget = null;
+
+    const buildMenuEl = document.getElementById('build-menu');
+    const buildOptionsEl = document.getElementById('build-options');
+
+    function openBuildMenu(entry) {
+      buildMenuTarget = entry;
+      buildMenuOpen = true;
+      buildOptionsEl.innerHTML = '';
+      Object.entries(BUILDING_TYPES).forEach(([key, bt]) => {
+        const btn = document.createElement('button');
+        btn.className = 'build-option';
+        btn.innerHTML = `
+          <div>
+            <div class="name">${bt.name}</div>
+            <div class="desc">${bt.desc}</div>
+          </div>
+          <div class="color-swatch" style="background:#${bt.color.toString(16).padStart(6,'0')}"></div>
+        `;
+        btn.addEventListener('click', () => buildOnFoundation(entry, key));
+        buildOptionsEl.appendChild(btn);
+      });
+      buildMenuEl.classList.add('open');
+    }
+
+    function closeBuildMenu() {
+      buildMenuOpen = false;
+      buildMenuTarget = null;
+      buildMenuEl.classList.remove('open');
+    }
+
+    document.getElementById('build-menu-cancel').addEventListener('click', closeBuildMenu);
+
+    function buildOnFoundation(entry, typeKey) {
+      if (entry.building) return;
+      const bt = BUILDING_TYPES[typeKey];
+      if (!bt) return;
+      closeBuildMenu();
+
+      // Remove foundation slab
+      scene.remove(entry.mesh);
+      scene.remove(entry.edge);
+      const idx = foundationTargets.indexOf(entry.mesh);
+      if (idx !== -1) foundationTargets.splice(idx, 1);
+
+      const center = getCellCenter(entry.cx, entry.cz);
+      const mat = new THREE.MeshLambertMaterial({ color: bt.color });
+      let bMesh;
+
+      if (typeKey === 'wall') {
+        bMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, bt.height, CELL - 0.2), mat);
+        bMesh.position.set(center.x, bt.height / 2, center.z);
+      } else if (typeKey === 'turret') {
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.5, 0.3, 8), mat);
+        base.position.set(center.x, 0.15, center.z);
+        scene.add(base);
+        const topMat = new THREE.MeshLambertMaterial({ color: 0xdd6666 });
+        const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.8), topMat);
+        top.position.set(center.x, 0.6, center.z);
+        scene.add(top);
+        entry.building = typeKey;
+        entry.buildingMeshes = [base, top];
+        entry.building = typeKey;
+        return;
+      } else if (typeKey === 'solar') {
+        bMesh = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, 0.1, CELL * 0.6), mat);
+        bMesh.position.set(center.x, 0.05, center.z);
+        bMesh.rotation.z = 0.3;
+      } else if (typeKey === 'storage') {
+        bMesh = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, bt.height, CELL - 1), mat);
+        bMesh.position.set(center.x, bt.height / 2, center.z);
+      } else {
+        bMesh = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, bt.height, CELL - 1), mat);
+        bMesh.position.set(center.x, bt.height / 2, center.z);
+      }
+
+      if (bMesh) {
+        bMesh.castShadow = true;
+        bMesh.receiveShadow = true;
+        scene.add(bMesh);
+        entry.buildingMesh = bMesh;
+      }
+      entry.building = typeKey;
+    }
+
     // ── PLAYER ───────────────────────────────────
     function buildPlayer() {
       const g = new THREE.Group();
@@ -314,7 +491,7 @@
         legs.push(leg);
       });
 
-      g.position.set(0, 1.2, 0);
+      g.position.set(0, 0, 0);
       scene.add(g);
 
       let animTime = 0;
@@ -349,7 +526,10 @@
         document.getElementById('mode-display').textContent =
           state.mode.toUpperCase().replace('-', ' ');
       }
-      if (e.code === 'Escape') window.location.href = 'solar-system.html';
+      if (e.code === 'Escape') {
+        if (buildMenuOpen) { closeBuildMenu(); return; }
+        window.location.href = 'solar-system.html';
+      }
     });
     document.addEventListener('keyup', e => { state.keys[e.code] = false; });
 
@@ -373,6 +553,27 @@
         hoveredCell = cell;
         document.getElementById('pos-cell').textContent = `Cell: ${cell.cx}, ${cell.cz}`;
       }
+    });
+
+    const clickRay = new THREE.Raycaster();
+    const clickMouse = new THREE.Vector2();
+
+    renderer.domElement.addEventListener('click', e => {
+      if (buildMenuOpen) return;
+      clickMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      clickMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      clickRay.setFromCamera(clickMouse, camera);
+
+      const hits = clickRay.intersectObjects(foundationTargets);
+      if (hits.length > 0) {
+        const hitMesh = hits[0].object;
+        const entry = foundations.find(f => f.mesh === hitMesh);
+        if (entry && !entry.building) {
+          openBuildMenu(entry);
+          return;
+        }
+      }
+      if (hoveredCell) placeFoundation(hoveredCell.cx, hoveredCell.cz);
     });
 
     renderer.domElement.addEventListener('wheel', e => {
@@ -422,7 +623,7 @@
       if (playerObj.isMoving && state.mode === 'isometric') {
         state.playerDir = Math.atan2(mx, mz);
       }
-      player.position.y = 1.2;
+      player.position.y = 0;
       player.rotation.y = state.playerDir;
 
       // Walking animation
