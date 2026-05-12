@@ -452,23 +452,6 @@
       lockedPlanet: null,
     };
 
-    const surfaceState = {
-      active: false,
-      scene: null,
-      player: null,
-      cameraIso: null,
-      cameraThird: null,
-      activeCam: null,
-      camMode: 'isometric',
-      terrain: null,
-      seed: 0,
-      playerDir: 0,
-      zoom: 1,
-      keys: {},
-    };
-    const surfaceRay = new THREE.Raycaster();
-    const surfaceMouse = new THREE.Vector2();
-
     // ─────────────────────────────────────────────
     // SCENE SETUP
     // ─────────────────────────────────────────────
@@ -1195,17 +1178,6 @@
       mousePosRaw.x = nx;
       mousePosRaw.y = ny;
 
-      if (surfaceState.active && surfaceState.terrain && surfaceState.player) {
-        surfaceMouse.set(nx, ny);
-        surfaceRay.setFromCamera(surfaceMouse, surfaceState.activeCam);
-        const hits = surfaceRay.intersectObject(surfaceState.terrain);
-        if (hits.length > 0) {
-          const p = hits[0].point;
-          const dx = p.x - surfaceState.player.position.x;
-          const dz = p.z - surfaceState.player.position.z;
-          surfaceState.playerDir = Math.atan2(dx, dz);
-        }
-      }
     });
 
     // ─────────────────────────────────────────────
@@ -1215,7 +1187,6 @@
     const mouse      = new THREE.Vector2();
 
     renderer.domElement.addEventListener('click', e => {
-      if (surfaceState.active) return;
       mouse.x = (e.clientX / window.innerWidth)  * 2 - 1;
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
@@ -1228,24 +1199,6 @@
         enterFreeRoam();
       }
     });
-
-    document.addEventListener('keydown', e => {
-      surfaceState.keys[e.code] = true;
-      if (e.code === 'KeyV' && surfaceState.active) {
-        surfaceState.camMode = surfaceState.camMode === 'isometric' ? 'third-person' : 'isometric';
-        surfaceState.activeCam = surfaceState.camMode === 'isometric' ? surfaceState.cameraIso : surfaceState.cameraThird;
-      }
-      if (e.code === 'Escape' && surfaceState.active) {
-        e.preventDefault();
-        returnToSolar();
-      }
-    });
-    document.addEventListener('keyup', e => { surfaceState.keys[e.code] = false; });
-
-    renderer.domElement.addEventListener('wheel', e => {
-      if (!surfaceState.active) return;
-      surfaceState.zoom = Math.max(0.3, Math.min(5, surfaceState.zoom + e.deltaY * 0.005));
-    }, { passive: true });
 
     // ─────────────────────────────────────────────
     // PLANET INFO DATA
@@ -1379,210 +1332,6 @@
     }
 
     // ─────────────────────────────────────────────
-    // SURFACE SCENE
-    // ─────────────────────────────────────────────
-    function simpleNoise(x, z, seed) {
-      return Math.sin(x * 0.08 + seed) * Math.cos(z * 0.08 + seed * 1.3) * 2.0
-           + Math.sin(x * 0.15 + seed * 2.7) * Math.cos(z * 0.12 + seed * 0.9) * 1.0
-           + Math.sin(x * 0.30 + seed * 5.1) * Math.cos(z * 0.35 + seed * 3.7) * 0.4;
-    }
-
-    function terrainHeight(x, z, seed) {
-      return simpleNoise(x, z, seed);
-    }
-
-    function buildSurfaceScene(planetName) {
-      const sScene = new THREE.Scene();
-      const seed = planetName.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-      const info = PLANET_INFO[planetName];
-      const accentRGB = info.accentColor.replace('rgba(', '').replace(')', '').split(',').slice(0, 3).map(v => parseInt(v.trim()) / 255);
-      const accent = new THREE.Color(accentRGB[0], accentRGB[1], accentRGB[2]);
-
-      const terrainGeo = new THREE.PlaneGeometry(80, 80, 48, 48);
-      terrainGeo.rotateX(-Math.PI / 2);
-      const pos = terrainGeo.attributes.position;
-      const cols = new Float32Array(pos.count * 3);
-      for (let i = 0; i < pos.count; i++) {
-        const x = pos.getX(i);
-        const z = pos.getZ(i);
-        const h = simpleNoise(x, z, seed);
-        pos.setY(i, h);
-        const t = (h + 3) / 6;
-        const c = accent.clone().lerp(new THREE.Color(1, 1, 1), t * 0.5);
-        cols[i * 3] = c.r;
-        cols[i * 3 + 1] = c.g;
-        cols[i * 3 + 2] = c.b;
-      }
-      pos.needsUpdate = true;
-      terrainGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
-      terrainGeo.computeVertexNormals();
-
-      const terrainMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-      const terrain = new THREE.Mesh(terrainGeo, terrainMat);
-      sScene.add(terrain);
-
-      sScene.add(new THREE.AmbientLight('#404060', 0.6));
-      const sunDir = new THREE.DirectionalLight('#ffe0b0', 1.2);
-      sunDir.position.set(50, 30, 20);
-      sScene.add(sunDir);
-      const fillDir = new THREE.DirectionalLight('#8090ff', 0.3);
-      fillDir.position.set(-30, 20, -40);
-      sScene.add(fillDir);
-
-      const skyColor = accent.clone().multiplyScalar(0.3);
-      sScene.background = skyColor;
-      sScene.fog = new THREE.FogExp2(skyColor, 0.012);
-
-      const player = new THREE.Group();
-      const bodyMat = new THREE.MeshLambertMaterial({ color: '#3a6a9a', flatShading: true });
-      const skinMat = new THREE.MeshLambertMaterial({ color: '#d4a574', flatShading: true });
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 1.2, 6), bodyMat);
-      body.position.y = 0.6;
-      player.add(body);
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 6, 6), skinMat);
-      head.position.y = 1.35;
-      player.add(head);
-      [-1, 1].forEach(side => {
-        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.7, 4), skinMat);
-        arm.position.set(side * 0.5, 1.0, 0);
-        player.add(arm);
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 4), bodyMat);
-        leg.position.set(side * 0.2, 0.3, 0);
-        player.add(leg);
-      });
-
-      const startH = terrainHeight(0, 0, seed) + 1.4;
-      player.position.set(0, startH, 0);
-      sScene.add(player);
-
-      const aspect = window.innerWidth / window.innerHeight;
-      const viewSize = 20;
-      const cameraIso = new THREE.OrthographicCamera(
-        -viewSize * aspect, viewSize * aspect, viewSize, -viewSize, 0.1, 100
-      );
-      cameraIso.position.set(15, 15, 15);
-      cameraIso.lookAt(0, 0, 0);
-
-      const cameraThird = new THREE.PerspectiveCamera(50, aspect, 0.1, 100);
-      cameraThird.position.set(0, 5, 10);
-      cameraThird.lookAt(0, 0, 0);
-
-      return { scene: sScene, terrain, player, cameraIso, cameraThird };
-    }
-
-    function buildAndEnterSurface(planetName) {
-      const result = buildSurfaceScene(planetName);
-      surfaceState.scene = result.scene;
-      surfaceState.player = result.player;
-      surfaceState.cameraIso = result.cameraIso;
-      surfaceState.cameraThird = result.cameraThird;
-      surfaceState.activeCam = result.cameraIso;
-      surfaceState.terrain = result.terrain;
-      surfaceState.seed = planetName.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-      surfaceState.playerDir = 0;
-      surfaceState.zoom = 1;
-      surfaceState.active = true;
-
-      document.getElementById('back-to-space').style.display = 'block';
-      document.getElementById('controls-hint').innerHTML = 'Arrows · Move<br>Mouse · Aim<br>V · Toggle Cam<br>ESC · Back to Space';
-      document.getElementById('mode-display').textContent = planetName.toUpperCase();
-      document.getElementById('scene-fade').classList.remove('active');
-    }
-
-    function returnToSolar() {
-      const fade = document.getElementById('scene-fade');
-      fade.classList.add('active');
-      setTimeout(() => {
-        if (surfaceState.scene) {
-          surfaceState.scene.traverse(obj => {
-            if (obj.isMesh) {
-              if (obj.geometry) obj.geometry.dispose();
-              if (obj.material) {
-                if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-                else obj.material.dispose();
-              }
-            }
-          });
-          surfaceState.scene = null;
-        }
-        surfaceState.active = false;
-        state.mode = 'free-roam';
-        state.lockedPlanet = null;
-        controls.enabled = true;
-        controls.target.set(0, 0, 0);
-        document.getElementById('controls-hint').innerHTML = 'Drag · Rotate Camera<br>Scroll · Zoom<br>Click Planet · Lock On';
-        document.getElementById('crosshair').classList.remove('visible');
-        document.getElementById('mode-display').textContent = 'FREE ROAM';
-        document.getElementById('back-to-space').style.display = 'none';
-        fade.classList.remove('active');
-      }, 400);
-    }
-
-    function updateSurface(t, dt) {
-      const keys = surfaceState.keys;
-      const player = surfaceState.player;
-      if (!player) return;
-      const seed = surfaceState.seed;
-
-      let mx = 0, mz = 0;
-      const speed = 12 * dt;
-
-      if (surfaceState.camMode === 'isometric') {
-        if (keys['ArrowUp'] || keys['KeyW']) { mx -= 0.707; mz -= 0.707; }
-        if (keys['ArrowDown'] || keys['KeyS']) { mx += 0.707; mz += 0.707; }
-        if (keys['ArrowLeft'] || keys['KeyA']) { mx -= 0.707; mz += 0.707; }
-        if (keys['ArrowRight'] || keys['KeyD']) { mx += 0.707; mz -= 0.707; }
-      } else {
-        const dir = surfaceState.playerDir;
-        if (keys['ArrowUp'] || keys['KeyW']) { mx -= Math.sin(dir); mz -= Math.cos(dir); }
-        if (keys['ArrowDown'] || keys['KeyS']) { mx += Math.sin(dir); mz += Math.cos(dir); }
-        if (keys['ArrowLeft'] || keys['KeyA']) { mx -= Math.cos(dir); mz += Math.sin(dir); }
-        if (keys['ArrowRight'] || keys['KeyD']) { mx += Math.cos(dir); mz -= Math.sin(dir); }
-      }
-
-      const len = Math.sqrt(mx * mx + mz * mz);
-      if (len > 0) {
-        mx = mx / len * speed;
-        mz = mz / len * speed;
-        player.position.x += mx;
-        player.position.z += mz;
-        player.position.x = Math.max(-38, Math.min(38, player.position.x));
-        player.position.z = Math.max(-38, Math.min(38, player.position.z));
-      }
-
-      const h = terrainHeight(player.position.x, player.position.z, seed);
-      player.position.y = h + 1.4;
-      player.rotation.y = surfaceState.playerDir;
-
-      const ppos = player.position.clone();
-      ppos.y += 1.0;
-
-      if (surfaceState.camMode === 'isometric') {
-        const zoom = surfaceState.zoom;
-        const d = 15 / zoom;
-        const aspect = window.innerWidth / window.innerHeight;
-        const vs = 20 / zoom;
-        surfaceState.cameraIso.left = -vs * aspect;
-        surfaceState.cameraIso.right = vs * aspect;
-        surfaceState.cameraIso.top = vs;
-        surfaceState.cameraIso.bottom = -vs;
-        surfaceState.cameraIso.updateProjectionMatrix();
-        surfaceState.cameraIso.position.set(ppos.x + d, ppos.y + d, ppos.z + d);
-        surfaceState.cameraIso.lookAt(ppos);
-      } else {
-        const zoom = surfaceState.zoom;
-        const dist = Math.max(4, 12 / zoom);
-        const dir = surfaceState.playerDir;
-        const cx = ppos.x - Math.sin(dir) * dist;
-        const cz = ppos.z - Math.cos(dir) * dist;
-        surfaceState.cameraThird.position.lerp(new THREE.Vector3(cx, ppos.y + 4, cz), 0.1);
-        surfaceState.cameraThird.lookAt(ppos);
-      }
-    }
-
-    document.getElementById('back-to-space').addEventListener('click', returnToSolar);
-
-    // ─────────────────────────────────────────────
     // CLOCK + RENDER LOOP
     // ─────────────────────────────────────────────
     const clock = new THREE.Clock();
@@ -1593,18 +1342,7 @@
 
     function animate() {
       requestAnimationFrame(animate);
-      const t   = clock.getElapsedTime();
-      const dt  = clock.getDelta ? 0.016 : 0.016;
-
-      if (surfaceState.active) {
-        updateSurface(t, dt);
-        const pp = surfaceState.player.position;
-        document.getElementById('cam-x').textContent = `X: ${pp.x.toFixed(1)}`;
-        document.getElementById('cam-y').textContent = `Y: ${pp.z.toFixed(1)}`;
-        document.getElementById('cam-z').textContent = `H: ${(pp.y - 1.4).toFixed(1)}`;
-        renderer.render(surfaceState.scene, surfaceState.activeCam);
-        return;
-      }
+      const t = clock.getElapsedTime();
 
       // Rotate starfield very slowly
       starfield.rotation.y = t * 0.00015;
@@ -1713,19 +1451,6 @@
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
-      if (surfaceState.cameraIso) {
-        const aspect = w / h;
-        const vs = 20 / surfaceState.zoom;
-        surfaceState.cameraIso.left = -vs * aspect;
-        surfaceState.cameraIso.right = vs * aspect;
-        surfaceState.cameraIso.top = vs;
-        surfaceState.cameraIso.bottom = -vs;
-        surfaceState.cameraIso.updateProjectionMatrix();
-      }
-      if (surfaceState.cameraThird) {
-        surfaceState.cameraThird.aspect = w / h;
-        surfaceState.cameraThird.updateProjectionMatrix();
-      }
     });
 
     // ─────────────────────────────────────────────

@@ -181,7 +181,6 @@
 
       const mat = new THREE.MeshLambertMaterial({
         map: buildGroundTexture(),
-        flatShading: true,
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.receiveShadow = true;
@@ -233,7 +232,7 @@
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       const mat = new THREE.LineBasicMaterial({
-        color: '#aaccff', transparent: true, opacity: 0.3, depthWrite: false,
+        color: '#ffffff', transparent: true, opacity: 0.85, depthWrite: false, depthTest: false,
       });
       const grid = new THREE.LineSegments(geo, mat);
       scene.add(grid);
@@ -253,10 +252,16 @@
     scene.add(hoverMesh);
 
     const outlineMat = new THREE.LineBasicMaterial({
-      color: '#ffffff', transparent: true, opacity: 0.8, depthWrite: false,
+      color: '#ffffff', transparent: true, opacity: 0.9, depthWrite: false,
     });
-    const outlineGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(CELL, CELL));
-    const hoverOutline = new THREE.LineSegments(outlineGeo, outlineMat);
+    const hh = CELL / 2;
+    const outlinePts = [
+      new THREE.Vector3(-hh, 0, -hh), new THREE.Vector3(hh, 0, -hh),
+      new THREE.Vector3(hh, 0,  hh), new THREE.Vector3(-hh, 0,  hh),
+      new THREE.Vector3(-hh, 0, -hh),
+    ];
+    const outlineGeo = new THREE.BufferGeometry().setFromPoints(outlinePts);
+    const hoverOutline = new THREE.Line(outlineGeo, outlineMat);
     hoverOutline.rotation.x = -Math.PI / 2;
     hoverOutline.position.y = 0.065;
     hoverOutline.visible = false;
@@ -277,9 +282,9 @@
     // ── PLAYER ───────────────────────────────────
     function buildPlayer() {
       const g = new THREE.Group();
-      const matBody = new THREE.MeshLambertMaterial({ color: '#2a5a8a', flatShading: true });
-      const matSkin = new THREE.MeshLambertMaterial({ color: '#c49464', flatShading: true });
-      const matLeg = new THREE.MeshLambertMaterial({ color: '#3a3a5a', flatShading: true });
+      const matBody = new THREE.MeshLambertMaterial({ color: '#2a5a8a' });
+      const matSkin = new THREE.MeshLambertMaterial({ color: '#c49464' });
+      const matLeg = new THREE.MeshLambertMaterial({ color: '#3a3a5a' });
 
       const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.35), matBody);
       torso.position.y = 0.7;
@@ -354,7 +359,7 @@
       mouse.set(nx, ny);
       ray.setFromCamera(mouse, camera);
 
-      if (ray.intersectPlane(groundPlane, intersectPoint)) {
+      if (ray.ray.intersectPlane(groundPlane, intersectPoint)) {
         const dx = intersectPoint.x - player.position.x;
         const dz = intersectPoint.z - player.position.z;
         state.playerDir = Math.atan2(dx, dz);
