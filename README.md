@@ -1,6 +1,13 @@
 # Safayi
 
+![AI Generated](https://img.shields.io/badge/AI--Generated-DeepSeek%20V4-blue)
+![Agentic Coding](https://img.shields.io/badge/Built%20with-Agentic%20Coding-purple)
+
+> ⚠️ **Disclaimer:** 70% of the code here was built with [DeepSeek V4](https://api-docs.deepseek.com) and "agentic coding". Trying out cutting edge developer workflows. This does not neccesarily reflect the standards of my other projects.
+
 ![Progress](progress.png)
+
+
 
 Low-poly 3D solar system with walkable planet surfaces. Two-file scene system — no bundler, no build step, vanilla Three.js r128 from CDN.
 
