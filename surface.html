@@ -4,88 +4,147 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Planet Surface</title>
-  <style>
+   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; color: #fff; }
+    body { background: linear-gradient(135deg, #f0ebe3 0%, #e8e0d4 50%, #f2ede5 100%); overflow: hidden; font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; color: #4a3f32; }
     #canvas-container { position: fixed; inset: 0; }
     canvas { display: block; width: 100% !important; height: 100% !important; }
 
+    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes glowPulse { 0%, 100% { box-shadow: 0 0 8px rgba(74, 63, 50, 0.08); } 50% { box-shadow: 0 0 16px rgba(74, 63, 50, 0.18); } }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(40px); } }
+
     #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; z-index: 10; }
-    #hud-top { display: flex; justify-content: space-between; align-items: flex-start; padding: 24px 32px; }
-    #title-block h1 { font-size: 14px; letter-spacing: 0.35em; text-transform: uppercase; color: rgba(200, 220, 255, 0.6); font-weight: 700; }
-    #title-block .sub { font-size: 11px; letter-spacing: 0.2em; color: rgba(200, 220, 255, 0.3); margin-top: 4px; font-weight: 600; }
-    #status-block .mode-label { font-size: 11px; letter-spacing: 0.3em; color: rgba(255, 200, 100, 0.5); text-transform: uppercase; font-weight: 600; }
-    #status-block .mode-value { font-size: 16px; letter-spacing: 0.15em; color: rgba(255, 220, 140, 0.9); margin-top: 2px; font-weight: 700; }
+    #hud-top { display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 28px; }
+    #title-block h1 { font-size: 14px; letter-spacing: 0.35em; text-transform: uppercase; color: #5a4f42; font-weight: 700; text-shadow: 0 1px 0 rgba(255,255,255,0.5); }
+    #title-block .sub { font-size: 11px; letter-spacing: 0.2em; color: #9a8f82; margin-top: 4px; font-weight: 600; }
+    #status-block .mode-label { font-size: 11px; letter-spacing: 0.3em; color: #b8956a; text-transform: uppercase; font-weight: 600; }
+    #status-block .mode-value { font-size: 16px; letter-spacing: 0.15em; color: #8a6a4a; margin-top: 2px; font-weight: 700; }
 
     #back-to-space {
-      position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 15;
-      padding: 8px 20px; background: rgba(10, 10, 26, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(200, 220, 255, 0.6);
-      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 11px; letter-spacing: 0.25em; font-weight: 600;
-      cursor: pointer; text-transform: uppercase; backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px); transition: background 0.2s; pointer-events: auto;
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 15;
+      padding: 8px 22px; background: rgba(240, 235, 227, 0.8);
+      border: 1px solid rgba(74, 63, 50, 0.12); color: #6a5f52;
+      font-family: inherit; font-size: 11px; letter-spacing: 0.25em; font-weight: 600;
+      cursor: pointer; text-transform: uppercase; backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px); transition: all 0.2s; pointer-events: auto;
+      border-radius: 4px;
     }
-    #back-to-space:hover { background: rgba(30, 30, 60, 0.9); color: rgba(255, 255, 255, 0.9); }
+    #back-to-space:hover { background: rgba(220, 210, 195, 0.95); color: #3a2f22; border-color: rgba(74, 63, 50, 0.25); }
 
-    #info-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 20px 32px; display: flex; justify-content: space-between; align-items: flex-end; pointer-events: none; z-index: 10; }
-    #controls-hint { font-size: 12px; letter-spacing: 0.2em; color: rgba(150, 180, 255, 0.35); text-transform: uppercase; line-height: 1.8; font-weight: 600; }
-    #coords { font-size: 12px; letter-spacing: 0.15em; color: rgba(150, 180, 255, 0.3); text-align: right; line-height: 1.8; font-weight: 600; }
+    #info-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px 28px; display: flex; justify-content: space-between; align-items: flex-end; pointer-events: none; z-index: 10; background: linear-gradient(0deg, rgba(240,235,227,0.6) 0%, transparent 100%); }
+    #controls-hint { font-size: 12px; letter-spacing: 0.2em; color: #8a7f72; text-transform: uppercase; line-height: 1.8; font-weight: 600; }
+    #coords { font-size: 12px; letter-spacing: 0.15em; color: #9a8f82; text-align: right; line-height: 1.8; font-weight: 600; }
 
-    #loading { position: fixed; inset: 0; background: #000010; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.8s ease; }
+    #loading { position: fixed; inset: 0; background: #f0ebe3; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.8s ease; }
     #loading.hidden { opacity: 0; pointer-events: none; }
 
+    #toast-container { position: fixed; top: 80px; right: 28px; z-index: 50; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+    .toast {
+      padding: 10px 18px; background: rgba(240, 235, 227, 0.94); border: 1px solid rgba(74, 63, 50, 0.12);
+      backdrop-filter: blur(12px); border-radius: 4px;
+      font-size: 11px; letter-spacing: 0.15em; font-weight: 600; color: #4a3f32;
+      animation: toastIn 0.25s ease forwards; box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    }
+    .toast.out { animation: toastOut 0.2s ease forwards; }
+
     #hotbar {
-      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
       z-index: 25; display: flex; gap: 4px;
+      background: rgba(30, 26, 22, 0.5);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      padding: 5px 6px; border-radius: 6px;
     }
     .hb-btn {
-      padding: 10px 18px; min-width: 72px;
-      background: rgba(10, 10, 26, 0.75);
-      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.06);
-      color: rgba(200, 220, 255, 0.5); cursor: pointer;
-      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 10px; letter-spacing: 0.15em; font-weight: 600;
-      text-transform: uppercase; text-align: center; line-height: 1.3;
-      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      width: 44px; height: 44px;
+      background: rgba(240, 235, 227, 0.12);
+      border: 2px solid rgba(240, 235, 227, 0.08);
+      color: #d4cdc0; cursor: pointer;
+      font-family: inherit; font-size: 9px; letter-spacing: 0.1em; font-weight: 600;
+      text-transform: uppercase; text-align: center;
+      transition: all 0.12s; border-radius: 4px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: relative;
     }
-    .hb-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: rgba(200, 220, 255, 0.8); }
-    .hb-btn.active { border-color: rgba(200, 220, 255, 0.35); color: #fff; background: rgba(200, 220, 255, 0.08); }
-    .hb-btn .key { font-size: 9px; color: rgba(150, 180, 255, 0.3); display: block; margin-bottom: 3px; font-weight: 700; }
-    .hb-btn .swatch { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 1px; vertical-align: middle; }
+    .hb-btn:hover { background: rgba(240, 235, 227, 0.18); border-color: rgba(240, 235, 227, 0.2); }
+    .hb-btn.active { border-color: #d4a84a; background: rgba(212, 168, 74, 0.15); color: #f0e5c0; }
+    .hb-btn .key { font-size: 8px; color: rgba(212, 205, 192, 0.5); font-weight: 700; position: absolute; top: 3px; left: 5px; }
+    .hb-btn .swatch { width: 18px; height: 18px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.15); }
+    .hb-btn .hb-label { font-size: 7px; letter-spacing: 0.05em; color: rgba(212, 205, 192, 0.7); line-height: 1; }
 
-    #action-panel {
-      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    #block-popup {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(10px);
       z-index: 30; display: none;
-      background: rgba(10, 10, 26, 0.88);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(240, 235, 227, 0.94);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(74, 63, 50, 0.12);
       padding: 18px 24px 16px;
-      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace;
+      font-family: inherit;
       min-width: 300px;
+      border-radius: 6px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.06);
     }
-    #action-panel.open { display: block; }
-    #action-title { font-size: 12px; letter-spacing: 0.35em; color: rgba(200,220,255,0.55); text-transform: uppercase; margin-bottom: 14px; text-align: center; font-weight: 700; }
-    .action-row { display: flex; gap: 8px; justify-content: center; }
-    .action-btn {
-      padding: 9px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-      color: rgba(200, 220, 255, 0.6); cursor: pointer;
-      font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 10px; letter-spacing: 0.2em; font-weight: 600;
-      text-transform: uppercase; transition: background 0.12s, color 0.12s;
+    #block-popup.open { display: block; animation: fadeSlideUp 0.2s ease forwards; }
+    .bp-title { font-size: 12px; letter-spacing: 0.35em; color: #5a4f42; text-transform: uppercase; margin-bottom: 8px; text-align: center; font-weight: 700; }
+    .bp-sub { font-size: 10px; letter-spacing: 0.2em; color: #8a7f72; text-align: center; margin-bottom: 12px; font-weight: 600; }
+    .bp-hp-wrap { margin-bottom: 10px; }
+    .bp-hp-bar { height: 4px; background: rgba(74, 63, 50, 0.08); border-radius: 2px; overflow: hidden; }
+    .bp-hp-fill { height: 100%; width: 100%; background: #5a8a6a; transition: width 0.3s; border-radius: 2px; }
+    .bp-hp-label { font-size: 10px; letter-spacing: 0.2em; color: #6a5f52; text-align: center; margin-top: 4px; font-weight: 600; }
+    .bp-section { border-top: 1px solid rgba(74,63,50,0.08); padding-top: 10px; margin-top: 10px; }
+    .bp-section-label { font-size: 8px; letter-spacing: 0.3em; color: #8a7f72; text-transform: uppercase; margin-bottom: 8px; text-align: center; font-weight: 600; }
+    .bp-grid { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+    .bp-btn {
+      padding: 7px 12px; background: rgba(74, 63, 50, 0.04); border: 1px solid rgba(74, 63, 50, 0.1);
+      color: #6a5f52; cursor: pointer;
+      font-family: inherit; font-size: 9px; letter-spacing: 0.15em; font-weight: 600;
+      text-transform: uppercase; transition: all 0.12s; border-radius: 4px;
+      display: flex; align-items: center; gap: 6px;
     }
-    .action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
-    .action-btn:disabled { opacity: 0.3; cursor: default; color: rgba(150, 180, 255, 0.25); }
-    #action-hp-wrap { margin-bottom: 10px; }
-    #action-hp-bar { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
-    #action-hp-fill { height: 100%; width: 100%; background: #44cc88; transition: width 0.3s; border-radius: 2px; }
-    #action-hp-label { font-size: 10px; letter-spacing: 0.2em; color: rgba(200,220,255,0.35); text-align: center; margin-top: 5px; font-weight: 600; }
-    #action-tier-line { font-size: 10px; letter-spacing: 0.2em; color: rgba(200,220,255,0.3); text-align: center; margin-bottom: 12px; font-weight: 600; }
+    .bp-btn:hover:not(:disabled) { background: rgba(74, 63, 50, 0.08); color: #3a2f22; border-color: rgba(74, 63, 50, 0.18); }
+    .bp-btn:active:not(:disabled) { transform: scale(0.97); }
+    .bp-btn:disabled { opacity: 0.3; cursor: default; color: #8a7f72; }
+    .bp-btn .swatch { display: inline-block; width: 7px; height: 7px; border-radius: 1px; flex-shrink: 0; }
+
+    #inventory-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(30, 26, 22, 0.6);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      font-family: inherit;
+    }
+    #inventory-overlay.open { display: flex; animation: fadeSlideUp 0.15s ease forwards; }
+    #inventory-panel {
+      background: rgba(240, 235, 227, 0.96);
+      border: 1px solid rgba(74, 63, 50, 0.12);
+      border-radius: 8px; padding: 28px 32px 24px;
+      min-width: 420px; max-width: 520px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.12);
+    }
+    #inv-title { font-size: 13px; letter-spacing: 0.4em; color: #4a3f32; text-transform: uppercase; text-align: center; font-weight: 700; margin-bottom: 20px; }
+    #inv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .inv-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px;
+      background: rgba(74, 63, 50, 0.03); border: 1px solid rgba(74, 63, 50, 0.08);
+      border-radius: 5px; cursor: pointer;
+      transition: all 0.12s;
+    }
+    .inv-card:hover { background: rgba(74, 63, 50, 0.07); border-color: rgba(74, 63, 50, 0.16); transform: translateY(-1px); }
+    .inv-card:active { transform: scale(0.97); }
+    .inv-swatch { width: 24px; height: 24px; border-radius: 3px; flex-shrink: 0; }
+    .inv-info { flex: 1; min-width: 0; }
+    .inv-name { font-size: 11px; letter-spacing: 0.15em; font-weight: 700; color: #3a2f22; text-transform: uppercase; }
+    .inv-desc { font-size: 9px; letter-spacing: 0.1em; color: #8a7f72; margin-top: 2px; font-weight: 500; }
+    #inv-hint { text-align: center; font-size: 9px; letter-spacing: 0.3em; color: #8a7f72; margin-top: 16px; font-weight: 600; text-transform: uppercase; }
   </style>
 </head>
 <body>
 
   <div id="loading">
-    <div style="font-size:14px;letter-spacing:0.5em;color:rgba(200,220,255,0.5);text-transform:uppercase;margin-bottom:32px;font-weight:700;">Generating Terrain</div>
-    <div style="font-size:12px;letter-spacing:0.3em;color:rgba(150,180,255,0.35);text-transform:uppercase;font-weight:600;" id="loading-name"></div>
+    <div style="font-size:14px;letter-spacing:0.5em;color:#6a5f52;text-transform:uppercase;margin-bottom:32px;font-weight:700;">Generating Terrain</div>
+    <div style="font-size:12px;letter-spacing:0.3em;color:#8a7f72;text-transform:uppercase;font-weight:600;" id="loading-name"></div>
   </div>
 
   <div id="canvas-container"></div>
@@ -105,33 +164,44 @@
 
   <button id="back-to-space">Back to Space</button>
 
-  <div id="action-panel">
-    <div id="action-title"></div>
-    <div id="action-tier-line"></div>
-    <div id="action-hp-wrap">
-      <div id="action-hp-bar"><div id="action-hp-fill"></div></div>
-      <div id="action-hp-label">HP 100/100</div>
+  <div id="hotbar"></div>
+
+  <div id="block-popup">
+    <div class="bp-title" id="bp-title"></div>
+    <div class="bp-sub" id="bp-sub"></div>
+    <div class="bp-hp-wrap" id="bp-hp-wrap">
+      <div class="bp-hp-bar"><div class="bp-hp-fill" id="bp-hp-fill"></div></div>
+      <div class="bp-hp-label" id="bp-hp-label">HP 100/100</div>
     </div>
-    <div class="action-row">
-      <button class="action-btn" id="action-upgrade" disabled>Upgrade —</button>
-      <button class="action-btn" id="action-rotate">Rotate</button>
-      <button class="action-btn" id="action-dismantle">Dismantle</button>
-      <button class="action-btn" id="action-repair">Repair</button>
+    <div class="bp-section" id="bp-build-section">
+      <div class="bp-section-label">Build</div>
+      <div class="bp-grid" id="bp-build-grid"></div>
+    </div>
+    <div class="bp-section" id="bp-action-section">
+      <div class="bp-section-label">Actions</div>
+      <div class="bp-grid" id="bp-action-grid"></div>
     </div>
   </div>
 
-  <div id="hotbar"></div>
+  <div id="inventory-overlay">
+    <div id="inventory-panel">
+      <div id="inv-title">Inventory</div>
+      <div id="inv-grid"></div>
+      <div id="inv-hint">E · Close &nbsp;&nbsp; Click · Select</div>
+    </div>
+  </div>
 
   <div id="info-bar">
     <div id="controls-hint">
-      Arrows · Move<br>
-      Mouse · Aim<br>
-      <span id="hint-keys">1-5</span> · Select building<br>
-      Click · Place<br>
-      R · Rotate<br>
-      Right Click · Deselect<br>
-      V · Toggle Cam<br>
-      ESC · Back to Space
+      Arrows/WASD · Move<br>
+      Click trees/rocks · Mine<br>
+      E · Inventory<br>
+      Click ground · Build<br>
+      Click building · Actions<br>
+      <span id="hint-keys">1-6</span> · Items<br>
+      Right Click · Close<br>
+      V · Camera<br>
+      ESC · Back
     </div>
     <div id="coords">
       <span id="pos-x">X: 0</span><br>
@@ -389,6 +459,176 @@
       return true;
     }
 
+    // ── SOUND EFFECTS ────────────────────────────
+    let audioCtx = null;
+    function initAudio() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} } }
+    function playTone(freq, dur, type, vol) {
+      try {
+        initAudio();
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol || 0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur || 0.1));
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + (dur || 0.1));
+      } catch(e) {}
+    }
+    function sfxBuild() { playTone(440, 0.12, 'square', 0.04); }
+    function sfxMine() { playTone(220, 0.08, 'triangle', 0.06); }
+    function sfxUpgrade() { playTone(660, 0.18, 'sine', 0.05); }
+    function sfxError() { playTone(150, 0.2, 'sawtooth', 0.03); }
+    function sfxClick() { playTone(880, 0.04, 'sine', 0.02); }
+    function sfxDismantle() { playTone(300, 0.15, 'sawtooth', 0.04); }
+    function sfxRepair() { playTone(520, 0.1, 'triangle', 0.04); }
+
+    // ── RESOURCE NODES ───────────────────────────
+    const RESOURCE_TYPES = {
+      tree: { name: 'Tree', color: 0x2d8a4e, drop: { wood: 3 }, hp: 30, respawn: 12000 },
+      rock: { name: 'Rock', color: 0x7a7a7a, drop: { stone: 2, scrap: 1 }, hp: 40, respawn: 18000 },
+    };
+
+    let resourceNodes = [];
+    let resourceTargets = [];
+    const NUM_RESOURCES = 60;
+    let lastMineTime = 0;
+    const MINE_COOLDOWN = 300;
+
+    function spawnResourceNode(typeKey, x, z) {
+      const def = RESOURCE_TYPES[typeKey];
+      const group = new THREE.Group();
+      group.position.set(x, 0, z);
+      const mat = new THREE.MeshLambertMaterial({ color: def.color });
+
+      if (typeKey === 'tree') {
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 0.5, 6), new THREE.MeshLambertMaterial({ color: 0x5a3a1a }));
+        trunk.position.y = 0.25;
+        trunk.castShadow = true;
+        group.add(trunk);
+        const crown = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.0, 6), mat);
+        crown.position.y = 0.9;
+        crown.castShadow = true;
+        group.add(crown);
+        const crown2 = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.7, 6), mat);
+        crown2.position.set(0.3, 1.3, 0.3);
+        crown2.castShadow = true;
+        group.add(crown2);
+      } else if (typeKey === 'rock') {
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5), mat);
+        rock.position.y = 0.25;
+        rock.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+        rock.castShadow = true;
+        group.add(rock);
+        const rock2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25), mat);
+        rock2.position.set(0.4, 0.15, 0.25);
+        rock2.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+        rock2.castShadow = true;
+        group.add(rock2);
+      }
+
+      group.userData.isResource = true;
+      group.userData.typeKey = typeKey;
+      group.userData.hp = def.hp;
+      group.userData.maxHp = def.hp;
+      group.userData.respawnTimer = null;
+
+      scene.add(group);
+      group.children.forEach(c => {
+        c.userData.isResource = true;
+        c.userData.resourceGroup = group;
+        resourceTargets.push(c);
+      });
+      resourceNodes.push(group);
+      return group;
+    }
+
+    function generateResources() {
+      const s = SEED + 99;
+      let seed = s;
+      const rng = () => { seed = (seed * 1664525 + 1013904223) | 0; return (seed >>> 0) / 4294967296; };
+      const types = Object.keys(RESOURCE_TYPES);
+      const margin = 4;
+      const centerExclude = 8;
+      for (let i = 0; i < NUM_RESOURCES * 3; i++) {
+        if (resourceNodes.length >= NUM_RESOURCES) break;
+        const x = -HALF + margin + rng() * (TS - margin * 2);
+        const z = -HALF + margin + rng() * (TS - margin * 2);
+        if (Math.abs(x) < centerExclude && Math.abs(z) < centerExclude) continue;
+        if (resourceNodes.some(g => Math.abs(g.position.x - x) + Math.abs(g.position.z - z) < 4)) continue;
+        const cell = getCell(x, z);
+        if (foundations.some(f => f.cx === cell.cx && f.cz === cell.cz)) continue;
+        const type = types[Math.floor(rng() * types.length)];
+        spawnResourceNode(type, x, z);
+      }
+    }
+
+    function spawnParticles(x, y, z, color, count) {
+      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8 });
+      for (let i = 0; i < (count || 5); i++) {
+        const size = 0.04 + Math.random() * 0.08;
+        const p = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), mat.clone());
+        p.position.set(x + (Math.random() - 0.5) * 0.3, y + 0.3 + Math.random() * 0.3, z + (Math.random() - 0.5) * 0.3);
+        const vx = (Math.random() - 0.5) * 3;
+        const vy = 2 + Math.random() * 3;
+        const vz = (Math.random() - 0.5) * 3;
+        scene.add(p);
+        const start = performance.now();
+        const dur = 400 + Math.random() * 200;
+        function tick() {
+          const t = Math.min(1, (performance.now() - start) / dur);
+          p.position.x += vx * 0.02;
+          p.position.y += vy * 0.02 - 0.02 * t * 5;
+          p.position.z += vz * 0.02;
+          p.material.opacity = 0.8 * (1 - t);
+          p.rotation.x += 0.2;
+          p.rotation.z += 0.3;
+          if (t < 1) requestAnimationFrame(tick);
+          else scene.remove(p);
+        }
+        tick();
+      }
+    }
+
+    function mineResource(group) {
+      const now = performance.now();
+      if (now - lastMineTime < MINE_COOLDOWN) return;
+      lastMineTime = now;
+
+      const def = RESOURCE_TYPES[group.userData.typeKey];
+      group.userData.hp -= 10;
+      sfxMine();
+      spawnParticles(group.position.x, group.position.y, group.position.z, def.color, 6);
+
+      group.children.forEach(c => {
+        if (c.material) {
+          c.material.emissive = new THREE.Color(0xffffff);
+          c.material.emissiveIntensity = 0.6;
+          setTimeout(() => {
+            if (c.material) { c.material.emissive = new THREE.Color(0x000000); c.material.emissiveIntensity = 0; }
+          }, 80);
+        }
+      });
+
+      if (group.userData.hp <= 0) {
+        addItems(def.drop);
+        saveInventory();
+        const total = Object.values(def.drop).reduce((a, b) => a + b, 0);
+        showToast('Mined ' + def.name + ' +' + total + ' resources');
+        group.visible = false;
+        group.userData.respawnTimer = setTimeout(() => {
+          group.userData.hp = group.userData.maxHp;
+          group.visible = true;
+          group.userData.respawnTimer = null;
+        }, def.respawn);
+      } else {
+        showToast(def.name + ' (' + group.userData.hp + '/' + group.userData.maxHp + ')');
+      }
+    }
+
     // ── BUILDING TYPES ───────────────────────────
     const BUILDING_TYPES = {
       wall:     { name: 'Wall',          color: 0x8a9aaa, desc: 'Perimeter barrier' },
@@ -396,48 +636,146 @@
       solar:    { name: 'Solar Panel',   color: 0x44aacc, desc: 'Power generation' },
       storage:  { name: 'Storage',       color: 0xccaa44, desc: 'Resource stockpile' },
       workshop: { name: 'Workshop',      color: 0xaa88cc, desc: 'Crafting station' },
+      gate:     { name: 'Gate',          color: 0x8a7a5a, desc: 'Fortified entryway' },
+      beacon:   { name: 'Beacon',        color: 0xd4a84a, desc: 'Navigation signal' },
     };
 
     const UPGRADE_TIERS = {
       wall: [
-        { name: 'Wall', color: 0x8a9aaa, scale: 1.0 },
-        { name: 'Reinforced Wall', color: 0x7a8a9a, scale: 1.25 },
-        { name: 'Fortress Wall', color: 0x5a6a7a, scale: 1.5 },
+        { name: 'Wood Wall', color: 0x8a7a5a, maxHp: 100 },
+        { name: 'Stone Wall', color: 0x7a8a8a, maxHp: 200 },
+        { name: 'Metal Wall', color: 0x6a7a8a, maxHp: 350 },
+        { name: 'Vibranium Wall', color: 0x5a6aaa, maxHp: 500 },
       ],
       turret: [
-        { name: 'Turret', color: 0xcc4444, scale: 1.0 },
-        { name: 'Cannon', color: 0xdd5555, scale: 1.25 },
-        { name: 'Artillery', color: 0xee6666, scale: 1.5 },
+        { name: 'Turret', color: 0xcc4444, maxHp: 80 },
+        { name: 'Cannon', color: 0xdd5555, maxHp: 120 },
+        { name: 'Artillery', color: 0xee6666, maxHp: 160 },
+        { name: 'Railgun', color: 0xaa66ff, maxHp: 200 },
       ],
       solar: [
-        { name: 'Solar Panel', color: 0x44aacc, scale: 1.0 },
-        { name: 'Solar Array', color: 0x55bbdd, scale: 1.3 },
-        { name: 'Solar Farm', color: 0x66ccee, scale: 1.6 },
+        { name: 'Solar Panel', color: 0x44aacc, maxHp: 60 },
+        { name: 'Solar Array', color: 0x55bbdd, maxHp: 90 },
+        { name: 'Solar Farm', color: 0x66ccee, maxHp: 120 },
       ],
       storage: [
-        { name: 'Storage', color: 0xccaa44, scale: 1.0 },
-        { name: 'Warehouse', color: 0xddbb55, scale: 1.3 },
-        { name: 'Depot', color: 0xeecc66, scale: 1.6 },
+        { name: 'Storage', color: 0xccaa44, maxHp: 100 },
+        { name: 'Warehouse', color: 0xddbb55, maxHp: 150 },
+        { name: 'Depot', color: 0xeecc66, maxHp: 200 },
       ],
       workshop: [
-        { name: 'Workshop', color: 0xaa88cc, scale: 1.0 },
-        { name: 'Lab', color: 0xbb99dd, scale: 1.25 },
-        { name: 'Research Center', color: 0xccaaee, scale: 1.5 },
+        { name: 'Workshop', color: 0xaa88cc, maxHp: 80 },
+        { name: 'Lab', color: 0xbb99dd, maxHp: 120 },
+        { name: 'Research Center', color: 0xccaaee, maxHp: 160 },
       ],
+      gate: [
+        { name: 'Wood Gate', color: 0x8a7a5a, maxHp: 80 },
+        { name: 'Stone Gate', color: 0x7a8a8a, maxHp: 150 },
+        { name: 'Metal Gate', color: 0x6a7a8a, maxHp: 250 },
+        { name: 'Vibranium Gate', color: 0x5a6aaa, maxHp: 400 },
+      ],
+      beacon: [
+        { name: 'Beacon', color: 0xd4a84a, maxHp: 60 },
+        { name: 'Lighthouse', color: 0xe0b85a, maxHp: 100 },
+        { name: 'Signal Tower', color: 0xecc86a, maxHp: 140 },
+      ],
+
+    // ── ITEMS (resources used to build infrastructure) ──
+    const ITEMS = {
+      wood:       { name: 'Wood',       color: '#8B4513' },
+      stone:      { name: 'Stone',      color: '#808080' },
+      metal:      { name: 'Metal',      color: '#4488cc' },
+      vibranium:  { name: 'Vibranium',  color: '#8844cc' },
+      electronics:{ name: 'Electronics',color: '#44cc88' },
+      scrap:      { name: 'Scrap',      color: '#cc8844' },
     };
 
+    const ITEM_ORDER = ['wood','stone','metal','vibranium','electronics','scrap'];
+
+    // Cost per building type per tier (items needed to build/upgrade)
+    const BUILD_COSTS = {
+      wall:     [{ wood: 10 },             { stone: 10 },             { metal: 10 },             { vibranium: 10 }],
+      turret:   [{ metal:5, stone:10 },    { metal:3, electronics:5 },{ metal:5, electronics:8 }, { vibranium:5, electronics:5 }],
+      solar:    [{ electronics:5,metal:5 },{ electronics:5,metal:5 }, { electronics:10,metal:5 }],
+      storage:  [{ wood:10,metal:5 },      { metal:10 },              { metal:5,electronics:5 }],
+      workshop: [{ wood:15,stone:5 },      { metal:10 },              { electronics:10,metal:5 }],
+      gate:     [{ wood:8 },               { stone:8 },               { metal:8 },               { vibranium:8 }],
+      beacon:   [{ wood:5,stone:5 },       { metal:5,electronics:3 }, { electronics:8,metal:5 }],
+    };
+
+    function getBuildCost(typeKey, tier) {
+      const tiers = BUILD_COSTS[typeKey];
+      if (!tiers || !tiers[tier]) return {};
+      return tiers[tier];
+    }
+
     const PLANET_BUILDS = {
-      Mercury: ['wall', 'turret', 'storage', 'workshop'],
-      Venus:   ['wall', 'turret', 'solar', 'storage', 'workshop'],
-      Earth:   ['wall', 'turret', 'solar', 'storage', 'workshop'],
-      Mars:    ['wall', 'turret', 'storage', 'workshop'],
-      Jupiter: ['wall', 'turret', 'storage'],
-      Saturn:  ['wall', 'turret', 'solar', 'storage'],
-      Uranus:  ['wall', 'storage', 'workshop'],
-      Neptune: ['wall', 'storage', 'workshop'],
+      Mercury: ['wall', 'turret', 'storage', 'workshop', 'gate'],
+      Venus:   ['wall', 'turret', 'solar', 'storage', 'workshop', 'gate', 'beacon'],
+      Earth:   ['wall', 'turret', 'solar', 'storage', 'workshop', 'gate', 'beacon'],
+      Mars:    ['wall', 'turret', 'storage', 'workshop', 'gate'],
+      Jupiter: ['wall', 'turret', 'storage', 'gate'],
+      Saturn:  ['wall', 'turret', 'solar', 'storage', 'gate', 'beacon'],
+      Uranus:  ['wall', 'storage', 'workshop', 'gate'],
+      Neptune: ['wall', 'storage', 'workshop', 'gate'],
     };
 
     let typeKeys = PLANET_BUILDS[PLANET_NAME] || Object.keys(BUILDING_TYPES);
+
+    // ── INVENTORY ────────────────────────────────
+    let playerInventory = {};
+
+    function initInventory() {
+      for (const k of ITEM_ORDER) playerInventory[k] = 0;
+      playerInventory.wood = 5;
+      playerInventory.stone = 5;
+      playerInventory.metal = 3;
+      playerInventory.electronics = 2;
+      playerInventory.scrap = 2;
+      refreshHotbar();
+    }
+
+    function hasItems(costs) {
+      for (const k of Object.keys(costs)) {
+        if ((playerInventory[k] || 0) < costs[k]) return false;
+      }
+      return true;
+    }
+
+    function spendItems(costs) {
+      for (const k of Object.keys(costs)) {
+        playerInventory[k] = (playerInventory[k] || 0) - costs[k];
+      }
+      refreshHotbar();
+    }
+
+    function addItems(items) {
+      for (const k of Object.keys(items)) {
+        playerInventory[k] = (playerInventory[k] || 0) + items[k];
+      }
+      refreshHotbar();
+    }
+
+    function saveInventory() {
+      try { localStorage.setItem('safayi_inv_' + PLANET_NAME, JSON.stringify(playerInventory)); } catch(e) {}
+    }
+
+    function loadInventory() {
+      let raw;
+      try { raw = localStorage.getItem('safayi_inv_' + PLANET_NAME); } catch(e) {}
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          initInventory();
+          for (const k of ITEM_ORDER) {
+            if (typeof data[k] === 'number') playerInventory[k] = data[k];
+          }
+          refreshHotbar();
+          return;
+        } catch(e) {}
+      }
+      initInventory();
+    }
 
     // ── COLLISION ────────────────────────────────
     const buildingColliders = [];
@@ -471,79 +809,107 @@
     // ── BUILDING TARGETS (for click detection) ────
     const buildingTargets = [];
 
-    // ── HOTBAR + DIRECT PLACEMENT ────────────────
-    let selectedBuilding = null;
-    let buildRotation = 0;
-    let placementGhost = null;
+    // ── HOTBAR + RESOURCES ────────────────────────
 
     const hotbarEl = document.getElementById('hotbar');
 
-    document.getElementById('hint-keys').textContent = '1-' + typeKeys.length;
+    document.getElementById('hint-keys').textContent = '1-' + ITEM_ORDER.length;
 
     function buildHotbar() {
       hotbarEl.innerHTML = '';
-      typeKeys.forEach((key, i) => {
-        const bt = BUILDING_TYPES[key];
-        const btn = document.createElement('button');
+      ITEM_ORDER.forEach((key, i) => {
+        const item = ITEMS[key];
+        const qty = playerInventory[key] || 0;
+        const btn = document.createElement('div');
         btn.className = 'hb-btn';
-        btn.dataset.type = key;
-        btn.innerHTML = `<span class="key">${i + 1}</span><span class="swatch" style="background:#${bt.color.toString(16).padStart(6,'0')}"></span>${bt.name}`;
-        btn.addEventListener('click', () => selectBuilding(key));
+        btn.innerHTML = `<span class="key">${i + 1}</span><span class="swatch" style="background:${item.color}"></span><span class="hb-label">${qty}</span>`;
         hotbarEl.appendChild(btn);
       });
     }
+
+    function refreshHotbar() {
+      const slots = hotbarEl.querySelectorAll('.hb-btn');
+      ITEM_ORDER.forEach((key, i) => {
+        if (slots[i]) {
+          slots[i].querySelector('.hb-label').textContent = playerInventory[key] || 0;
+        }
+      });
+    }
+
+    // Rebuild hotbar initially (and on inventory changes)
     buildHotbar();
 
-    function selectBuilding(key) {
-      if (selectedBuilding === key) { deselectBuilding(); return; }
-      selectedBuilding = key;
-      buildRotation = 0;
-      document.querySelectorAll('.hb-btn').forEach(b =>
-        b.classList.toggle('active', b.dataset.type === key)
-      );
-    }
 
-    function deselectBuilding() {
-      selectedBuilding = null;
-      buildRotation = 0;
-      document.querySelectorAll('.hb-btn').forEach(b => b.classList.remove('active'));
-      if (placementGhost) {
-        placementGhost.forEach(m => scene.remove(m));
-        placementGhost = null;
-      }
-    }
 
-    function rotateBuilding() {
-      if (!selectedBuilding) return;
-      buildRotation = (buildRotation + 1) % 4;
-      if (hoveredCell) updateGhost(hoveredCell.cx, hoveredCell.cz);
-    }
-
-    function makeBuildingMesh(typeKey, color, transparent, opacity, scale) {
-      const s = scale || 1;
+    function makeBuildingMesh(typeKey, color, transparent, opacity) {
       const mat = new THREE.MeshLambertMaterial({ color, transparent, opacity });
       let meshes = [];
 
       if (typeKey === 'wall') {
-        const m = new THREE.Mesh(new THREE.BoxGeometry((CELL - 0.2) * s, 3.0 * s, (CELL - 0.2) * s), mat);
-        m.position.set(0, 1.5 * s, 0);
-        meshes.push(m);
+        const s = CELL - 0.4, h = 4.5;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(s, h, s), mat);
+        body.position.set(0, h / 2, 0);
+        meshes.push(body);
+        const cH = 0.7, cS = 1.5, inset = 1.2;
+        const positions = [
+          [-s / 2 + inset, -s / 2 + inset],
+          [-s / 2 + inset, s / 2 - inset],
+          [s / 2 - inset, -s / 2 + inset],
+          [s / 2 - inset, s / 2 - inset],
+          [0, -s / 2 + inset],
+          [-s / 2 + inset, 0],
+          [s / 2 - inset, 0],
+          [0, s / 2 - inset],
+        ];
+        positions.forEach(([x, z]) => {
+          const c = new THREE.Mesh(new THREE.BoxGeometry(cS, cH, cS), mat);
+          c.position.set(x, h + cH / 2, z);
+          meshes.push(c);
+        });
       } else if (typeKey === 'turret') {
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(2 * s, 2.5 * s, 0.3 * s, 8), mat);
-        base.position.set(0, 0.15 * s, 0);
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.3, 0.3, 8), mat);
+        base.position.set(0, 0.15, 0);
         meshes.push(base);
         const topMat = new THREE.MeshLambertMaterial({ color: 0xdd6666, transparent, opacity });
-        const top = new THREE.Mesh(new THREE.BoxGeometry(0.8 * s, 0.6 * s, 0.8 * s), topMat);
-        top.position.set(0, 0.6 * s, 0);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.8), topMat);
+        top.position.set(0, 0.6, 0);
         meshes.push(top);
       } else if (typeKey === 'solar') {
-        const m = new THREE.Mesh(new THREE.BoxGeometry((CELL - 1) * s, 0.1 * s, CELL * 0.6 * s), mat);
-        m.position.set(0, 0.05 * s, 0);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, 0.1, CELL * 0.6), mat);
+        m.position.set(0, 0.05, 0);
         m.rotation.z = 0.3;
         meshes.push(m);
+      } else if (typeKey === 'gate') {
+        const s = CELL - 0.4, h = 4.0, pillarW = 0.8;
+        const left = new THREE.Mesh(new THREE.BoxGeometry(pillarW, h, pillarW), mat);
+        left.position.set(-s / 2 + pillarW / 2, h / 2, 0);
+        meshes.push(left);
+        const right = new THREE.Mesh(new THREE.BoxGeometry(pillarW, h, pillarW), mat);
+        right.position.set(s / 2 - pillarW / 2, h / 2, 0);
+        meshes.push(right);
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(s, 0.6, pillarW), mat);
+        beam.position.set(0, h, 0);
+        meshes.push(beam);
+        const crenelH = 0.4, crenelS = 1.2;
+        [-s/4, 0, s/4].forEach(x => {
+          const c = new THREE.Mesh(new THREE.BoxGeometry(crenelS, crenelH, crenelS), mat);
+          c.position.set(x, h + crenelH / 2, 0);
+          meshes.push(c);
+        });
+      } else if (typeKey === 'beacon') {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 5.0, 6), mat);
+        pole.position.set(0, 2.5, 0);
+        meshes.push(pole);
+        const glowMat = new THREE.MeshLambertMaterial({ color: 0xffdd55, emissive: 0xffaa00, emissiveIntensity: 0.4, transparent, opacity: 0.9 });
+        const glow = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), glowMat);
+        glow.position.set(0, 5.2, 0);
+        meshes.push(glow);
+        const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 1.2), mat);
+        base.position.set(0, 0.15, 0);
+        meshes.push(base);
       } else {
-        const m = new THREE.Mesh(new THREE.BoxGeometry((CELL - 1) * s, 1.0 * s, (CELL - 1) * s), mat);
-        m.position.set(0, 0.5 * s, 0);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, 1.0, CELL - 1), mat);
+        m.position.set(0, 0.5, 0);
         meshes.push(m);
       }
 
@@ -551,42 +917,19 @@
       return meshes;
     }
 
-    function updateGhost(cx, cz) {
-      if (placementGhost) {
-        placementGhost.forEach(m => scene.remove(m));
-        placementGhost = null;
-      }
-      if (!selectedBuilding) return;
-      const valid = canPlaceAt(cx, cz);
-      const color = valid ? 0x44ff88 : 0xff4444;
-      placementGhost = makeBuildingMesh(selectedBuilding, color, true, valid ? 0.3 : 0.4);
-      const center = getCellCenter(cx, cz);
-      placementGhost.forEach(m => {
-        m.position.x += center.x;
-        m.position.z += center.z;
-        if (buildRotation !== 0) {
-          const ox = m.position.x - center.x;
-          const oz = m.position.z - center.z;
-          const r = buildRotation * Math.PI / 2;
-          const nx = ox * Math.cos(r) - oz * Math.sin(r);
-          const nz = ox * Math.sin(r) + oz * Math.cos(r);
-          m.position.x = center.x + nx;
-          m.position.z = center.z + nz;
-          m.rotation.y += r;
-        }
-        scene.add(m);
-      });
-    }
+
 
     function getBuildingAABBs(cx, cz, typeKey, rotation) {
       const ry = rotation * Math.PI / 2;
       const halfCell = (CELL - 1) / 2;
-      if (typeKey === 'wall') return [aabbFromBox(cx, cz, (CELL - 0.2) / 2, (CELL - 0.2) / 2, 0)];
+      if (typeKey === 'wall') return [aabbFromBox(cx, cz, CELL / 2, CELL / 2, 0)];
       if (typeKey === 'turret') return [
         aabbFromBox(cx, cz, 2.5, 2.5, 0),
         aabbFromBox(cx, cz, 0.4, 0.4, ry),
       ];
       if (typeKey === 'solar') return [aabbFromBox(cx, cz, halfCell, CELL * 0.3, ry)];
+      if (typeKey === 'gate') return [aabbFromBox(cx, cz, CELL / 2, 0.4, ry)];
+      if (typeKey === 'beacon') return [aabbFromBox(cx, cz, 0.8, 0.8, 0)];
       return [aabbFromBox(cx, cz, halfCell, halfCell, ry)];
     }
 
@@ -594,6 +937,9 @@
       if (foundations.some(f => f.cx === cx && f.cz === cz && f.building)) return;
       const pc = getCell(player.position.x, player.position.z);
       if (pc.cx === cx && pc.cz === cz) return;
+
+      const cost = getBuildCost(typeKey, 0);
+      if (!hasItems(cost)) { sfxError(); showToast('Not enough resources'); return; }
 
       let entry = foundations.find(f => f.cx === cx && f.cz === cz);
       if (entry) {
@@ -613,12 +959,11 @@
       }
 
       const tiers = UPGRADE_TIERS[typeKey];
-      const tier = 0;
-      const tDef = tiers ? tiers[tier] : null;
+      const tDef = tiers ? tiers[0] : null;
       const tColor = tDef ? tDef.color : BUILDING_TYPES[typeKey].color;
-      const tScale = tDef ? tDef.scale : 1;
+      const tMaxHp = tDef ? tDef.maxHp : 100;
       const center = getCellCenter(cx, cz);
-      const meshes = makeBuildingMesh(typeKey, tColor, false, 1, tScale);
+      const meshes = makeBuildingMesh(typeKey, tColor, false, 1);
       meshes.forEach(m => {
         m.position.x += center.x;
         m.position.z += center.z;
@@ -635,6 +980,8 @@
         scene.add(m);
       });
 
+      animatePlacement(meshes);
+
       const aabbs = getBuildingAABBs(center.x, center.z, typeKey, rotation);
       aabbs.forEach(a => buildingColliders.push(a));
 
@@ -645,130 +992,147 @@
       entry.buildingMeshes = meshes;
       entry.colliderAABBs = aabbs;
       entry.tier = 0;
-      entry.hp = 100;
-      entry.maxHp = 100;
+      entry.hp = tMaxHp;
+      entry.maxHp = tMaxHp;
+      createHpBar(entry);
+      spendItems(cost);
+      saveInventory();
+      sfxBuild();
+      animateFlash(center.x, center.z, 0xd4a84a, 2);
+      showToast(tDef ? tDef.name : BUILDING_TYPES[typeKey].name + ' built');
       saveBuildings();
     }
 
-    // ── ACTION PANEL ─────────────────────────────
-    let actionTarget = null;
-    const actionPanelEl = document.getElementById('action-panel');
-    const actionTitleEl = document.getElementById('action-title');
-    const actionTierEl = document.getElementById('action-tier-line');
-    const actionHpFillEl = document.getElementById('action-hp-fill');
-    const actionHpLabelEl = document.getElementById('action-hp-label');
-    const actionUpgradeEl = document.getElementById('action-upgrade');
-    const actionRotateEl = document.getElementById('action-rotate');
-    const actionDismantleEl = document.getElementById('action-dismantle');
-    const actionRepairEl = document.getElementById('action-repair');
+    // ── SELECTION HIGHLIGHT ──────────────────────
+    let selectionOutline = null;
+    const selOutlineMat = new THREE.LineBasicMaterial({ color: 0xd4a84a, transparent: true, opacity: 0.8 });
 
-    function openActionPanel(entry) {
-      if (selectedBuilding) deselectBuilding();
-      actionTarget = entry;
-      const tiers = entry.building ? UPGRADE_TIERS[entry.building] : null;
-      const tier = entry.tier || 0;
-      const tDef = tiers ? tiers[tier] : null;
-      const name = tDef ? tDef.name : (entry.building ? BUILDING_TYPES[entry.building]?.name || entry.building : 'Foundation');
-      actionTitleEl.textContent = name.toUpperCase();
-      actionTierEl.textContent = tiers ? `Tier ${tier + 1} / ${tiers.length}` : '';
-      const hp = entry.hp || 0;
-      const maxHp = entry.maxHp || 100;
-      const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
-      actionHpFillEl.style.width = pct + '%';
-      actionHpFillEl.style.background = pct > 60 ? '#44cc88' : pct > 30 ? '#ccaa44' : '#cc4444';
-      actionHpLabelEl.textContent = `HP ${Math.round(hp)}/${maxHp}`;
-      const nextTier = tiers ? tiers[tier + 1] : null;
-      if (nextTier) {
-        actionUpgradeEl.disabled = false;
-        actionUpgradeEl.textContent = `Upgrade ${nextTier.name}`;
-      } else {
-        actionUpgradeEl.disabled = true;
-        actionUpgradeEl.textContent = entry.building ? 'Max Tier' : 'Upgrade —';
+    function clearSelectionOutline() {
+      if (selectionOutline) {
+        selectionOutline.forEach(l => scene.remove(l));
+        selectionOutline = null;
       }
-      actionRepairEl.disabled = hp >= maxHp;
-      actionPanelEl.classList.add('open');
     }
 
-    function closeActionPanel() {
-      actionTarget = null;
-      actionPanelEl.classList.remove('open');
+    function buildSelectionOutline(entry) {
+      clearSelectionOutline();
+      if (!entry || !entry.buildingMeshes) return;
+      selectionOutline = [];
+      entry.buildingMeshes.forEach(m => {
+        const edges = new THREE.EdgesGeometry(m.geometry);
+        const line = new THREE.LineSegments(edges, selOutlineMat);
+        line.position.copy(m.position);
+        line.rotation.copy(m.rotation);
+        line.scale.copy(m.scale);
+        scene.add(line);
+        selectionOutline.push(line);
+      });
     }
 
-    actionRotateEl.addEventListener('click', () => {
-      if (!actionTarget || !actionTarget.building) return;
-      const r = ((actionTarget.rotation || 0) + 1) % 4;
-      const center = getCellCenter(actionTarget.cx, actionTarget.cz);
-      (actionTarget.buildingMeshes || []).forEach(m => {
-        const ox = m.position.x - center.x;
-        const oz = m.position.z - center.z;
-        const nx = ox * Math.cos(Math.PI / 2) - oz * Math.sin(Math.PI / 2);
-        const nz = ox * Math.sin(Math.PI / 2) + oz * Math.cos(Math.PI / 2);
-        m.position.x = center.x + nx;
-        m.position.z = center.z + nz;
-        m.rotation.y += Math.PI / 2;
-      });
-      (actionTarget.colliderAABBs || []).forEach(a => {
-        const ci = buildingColliders.indexOf(a);
-        if (ci !== -1) buildingColliders.splice(ci, 1);
-      });
-      actionTarget.rotation = r;
-      const newAABBs = getBuildingAABBs(center.x, center.z, actionTarget.building, r);
-      newAABBs.forEach(a => buildingColliders.push(a));
-      actionTarget.colliderAABBs = newAABBs;
-    });
+    // ── TOAST NOTIFICATIONS ──────────────────────
+    const toastContainer = document.getElementById('toast-container') || (() => {
+      const el = document.createElement('div'); el.id = 'toast-container'; document.body.appendChild(el); return el;
+    })();
 
-    actionUpgradeEl.addEventListener('click', () => {
-      if (!actionTarget || !actionTarget.building) return;
-      const entry = actionTarget;
-      const tiers = UPGRADE_TIERS[entry.building];
-      if (!tiers || entry.tier >= tiers.length - 1) return;
-      const nextTier = entry.tier + 1;
-      const tDef = tiers[nextTier];
-      (entry.buildingMeshes || []).forEach(m => {
-        scene.remove(m);
-        const mi = buildingTargets.indexOf(m);
-        if (mi !== -1) buildingTargets.splice(mi, 1);
-      });
-      const center = getCellCenter(entry.cx, entry.cz);
-      const meshes = makeBuildingMesh(entry.building, tDef.color, false, 1, tDef.scale);
-      meshes.forEach(m => {
-        m.position.x += center.x;
-        m.position.z += center.z;
-        if (entry.rotation) {
-          const ox = m.position.x - center.x;
-          const oz = m.position.z - center.z;
-          const r = entry.rotation * Math.PI / 2;
-          m.position.x = center.x + ox * Math.cos(r) - oz * Math.sin(r);
-          m.position.z = center.z + ox * Math.sin(r) + oz * Math.cos(r);
-          m.rotation.y += r;
-        }
-        scene.add(m);
-      });
-      entry.buildingMeshes = meshes;
-      meshes.forEach(m => buildingTargets.push(m));
-      entry.tier = nextTier;
-      openActionPanel(entry);
-      saveBuildings();
-    });
+    function showToast(msg) {
+      const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+      toastContainer.appendChild(el);
+      setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 250); }, 2000);
+    }
 
-    actionDismantleEl.addEventListener('click', () => {
-      if (!actionTarget) return;
-      closeActionPanel();
-      const entry = actionTarget;
-      // Remove building meshes + targets
-      (entry.buildingMeshes || []).forEach(m => {
-        scene.remove(m);
-        const mi = buildingTargets.indexOf(m);
-        if (mi !== -1) buildingTargets.splice(mi, 1);
-      });
-      (entry.colliderAABBs || []).forEach(a => {
-        const ci = buildingColliders.indexOf(a);
-        if (ci !== -1) buildingColliders.splice(ci, 1);
-      });
-      entry.building = null;
-      entry.buildingMeshes = null;
-      entry.rotation = 0;
-      // Restore foundation
+    // ── FLOATING HP BARS ─────────────────────────
+    const hpBarMeshes = [];
+    const hpBarMat = new THREE.MeshBasicMaterial({ color: 0x5a8a6a, transparent: true, opacity: 0.7, depthWrite: false });
+    const hpBarBgMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.2, depthWrite: false });
+
+    function createHpBar(entry) {
+      const barW = 3, barH = 0.15, gap = 0.1;
+      const yOff = 0.2;
+      const bg = new THREE.Mesh(new THREE.PlaneGeometry(barW, barH), hpBarBgMat);
+      const fill = new THREE.Mesh(new THREE.PlaneGeometry(barW, barH), hpBarMat.clone());
+      const cx = getCellCenter(entry.cx, entry.cz).x;
+      const cz = getCellCenter(entry.cx, entry.cz).z;
+      bg.position.set(cx, yOff, cz);
+      bg.lookAt(camera.position);
+      fill.position.set(cx, yOff, cz + 0.01);
+      fill.lookAt(camera.position);
+      fill.userData.targetScale = 1;
+      fill.scale.x = 1;
+      scene.add(bg); scene.add(fill);
+      hpBarMeshes.push({ bg, fill, entry });
+      return { bg, fill };
+    }
+
+    function refreshHpBar(entry) {
+      const existing = hpBarMeshes.find(h => h.entry === entry);
+      if (!existing) return;
+      const pct = Math.max(0, Math.min(1, (entry.hp || 0) / (entry.maxHp || 100)));
+      existing.fill.userData.targetScale = pct;
+      const color = pct > 0.6 ? 0x5a8a6a : pct > 0.3 ? 0xb8954a : 0xcc4444;
+      existing.fill.material.color.setHex(color);
+    }
+
+    function removeHpBar(entry) {
+      const idx = hpBarMeshes.findIndex(h => h.entry === entry);
+      if (idx === -1) return;
+      const h = hpBarMeshes[idx];
+      scene.remove(h.bg); scene.remove(h.fill);
+      hpBarMeshes.splice(idx, 1);
+    }
+
+    // ── FLASH / RING EFFECT ──────────────────────
+    function animateFlash(wx, wz, color, count) {
+      for (let i = 0; i < (count || 1); i++) {
+        setTimeout(() => {
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.1, 0.5, 16),
+            new THREE.MeshBasicMaterial({ color: color || 0xd4a84a, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })
+          );
+          ring.rotation.x = -Math.PI / 2;
+          ring.position.set(wx + (Math.random() - 0.5) * 3, 0.1, wz + (Math.random() - 0.5) * 3);
+          scene.add(ring);
+          const start = performance.now();
+          const dur = 350;
+          function tick() {
+            const t = Math.min(1, (performance.now() - start) / dur);
+            const s = 0.3 + t * 4;
+            ring.scale.set(s, s, s);
+            ring.material.opacity = 0.7 * (1 - t);
+            if (t < 1) requestAnimationFrame(tick);
+            else scene.remove(ring);
+          }
+          tick();
+        }, i * 60);
+      }
+    }
+
+    // ── PLACEMENT ANIMATION ──────────────────────
+    function animatePlacement(meshes) {
+      meshes.forEach(m => { m.scale.set(0.01, 0.01, 0.01); });
+      const start = performance.now();
+      const dur = 250;
+      function tick() {
+        const t = Math.min(1, (performance.now() - start) / dur);
+        const s = 0.01 + 0.99 * (1 - Math.pow(1 - t, 3));
+        meshes.forEach(m => m.scale.set(s, s, s));
+        if (t < 1) requestAnimationFrame(tick);
+      }
+      tick();
+    }
+
+    // ── BLOCK POPUP ──────────────────────────────
+    let actionTarget = null;
+    const bpEl = document.getElementById('block-popup');
+    const bpTitleEl = document.getElementById('bp-title');
+    const bpSubEl = document.getElementById('bp-sub');
+    const bpHpFillEl = document.getElementById('bp-hp-fill');
+    const bpHpLabelEl = document.getElementById('bp-hp-label');
+    const bpBuildSection = document.getElementById('bp-build-section');
+    const bpBuildGrid = document.getElementById('bp-build-grid');
+    const bpActionSection = document.getElementById('bp-action-section');
+    const bpActionGrid = document.getElementById('bp-action-grid');
+
+    function buildFoundationFrom(entry) {
       const center = getCellCenter(entry.cx, entry.cz);
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.1, CELL), foundationMat);
       mesh.position.set(center.x, 0.02, center.z);
@@ -788,17 +1152,325 @@
       entry.mesh = mesh;
       entry.edge = edge;
       entry.collider = aabbFromBox(center.x, center.z, CELL / 2, CELL / 2, 0);
-      saveBuildings();
-    });
+    }
 
-    actionRepairEl.addEventListener('click', () => {
-      if (!actionTarget || !actionTarget.building) return;
-      const entry = actionTarget;
-      if (entry.hp >= entry.maxHp) return;
-      entry.hp = Math.min(entry.maxHp, (entry.hp || 0) + 50);
-      openActionPanel(entry);
+    function showBlockPopup(entry) {
+      hoverMesh.visible = false;
+      hoverOutline.visible = false;
+      buildSelectionOutline(entry);
+      actionTarget = entry;
+
+      const hasBuilding = !!entry.building;
+      const tiers = hasBuilding ? UPGRADE_TIERS[entry.building] : null;
+      const tier = entry.tier || 0;
+      const tDef = tiers ? tiers[tier] : null;
+
+      // Title
+      if (hasBuilding) {
+        bpTitleEl.textContent = (tDef ? tDef.name : BUILDING_TYPES[entry.building]?.name || entry.building).toUpperCase();
+        bpSubEl.textContent = tiers ? `Tier ${tier + 1} / ${tiers.length}` : '';
+      } else {
+        bpTitleEl.textContent = 'NEW CONSTRUCTION  [' + entry.cx + ', ' + entry.cz + ']';
+        bpSubEl.textContent = 'Select a building type';
+      }
+
+      // HP
+      const hpWrap = document.getElementById('bp-hp-wrap');
+      if (hasBuilding) {
+        hpWrap.style.display = 'block';
+        const hp = entry.hp || 0;
+        const maxHp = entry.maxHp || 100;
+        const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+        bpHpFillEl.style.width = pct + '%';
+        bpHpFillEl.style.background = pct > 60 ? '#5a8a6a' : pct > 30 ? '#b8954a' : '#cc4444';
+        bpHpLabelEl.textContent = `HP ${Math.round(hp)}/${maxHp}`;
+      } else {
+        hpWrap.style.display = 'none';
+      }
+
+      // Build section (for empty foundations)
+      if (!hasBuilding) {
+        bpBuildSection.style.display = 'block';
+        bpBuildGrid.innerHTML = '';
+        for (const key of typeKeys) {
+          const bt = BUILDING_TYPES[key];
+          if (!bt) continue;
+          const btn = document.createElement('button');
+          btn.className = 'bp-btn';
+          const swatch = document.createElement('span');
+          swatch.className = 'swatch';
+          swatch.style.background = '#' + bt.color.toString(16).padStart(6,'0');
+          btn.appendChild(swatch);
+          btn.appendChild(document.createTextNode(bt.name || key));
+          btn.addEventListener('click', () => {
+            if (!canPlaceAt(entry.cx, entry.cz)) { sfxError(); showToast('Cannot build here'); return; }
+            entry.building = key;
+            entry.tier = 0;
+            const tier0 = UPGRADE_TIERS[key][0];
+            entry.maxHp = tier0.maxHp;
+            entry.hp = tier0.maxHp;
+            entry.rotation = 0;
+            // Remove foundation mesh
+            if (entry.mesh) scene.remove(entry.mesh);
+            if (entry.edge) scene.remove(entry.edge);
+            const mi = foundationTargets.indexOf(entry.mesh);
+            if (mi !== -1) foundationTargets.splice(mi, 1);
+            if (entry.collider) entry.collider = null;
+            entry.mesh = null;
+            entry.edge = null;
+            // Build the building
+            const center = getCellCenter(entry.cx, entry.cz);
+            const meshes = makeBuildingMesh(key, tier0.color, false, 1);
+            meshes.forEach(m => {
+              m.position.x += center.x;
+              m.position.z += center.z;
+              scene.add(m);
+            });
+            entry.buildingMeshes = meshes;
+            meshes.forEach(m => buildingTargets.push(m));
+            const aabbs = getBuildingAABBs(center.x, center.z, key, 0);
+            aabbs.forEach(a => buildingColliders.push(a));
+            entry.colliderAABBs = aabbs;
+            animatePlacement(meshes);
+            createHpBar(entry);
+            sfxBuild();
+            animateFlash(center.x, center.z, 0xd4a84a, 2);
+            showToast('Built ' + (bt.name || key));
+            closeBlockPopup();
+            saveBuildings();
+          });
+          bpBuildGrid.appendChild(btn);
+        }
+      } else {
+        bpBuildSection.style.display = 'none';
+      }
+
+      // Action section (for built buildings)
+      bpActionGrid.innerHTML = '';
+      if (hasBuilding) {
+        bpActionSection.style.display = 'block';
+
+        // Upgrade
+        const nextTier = tiers ? tiers[tier + 1] : null;
+        if (nextTier) {
+          const uBtn = document.createElement('button');
+          uBtn.className = 'bp-btn';
+          uBtn.textContent = 'Upgrade ' + nextTier.name;
+          uBtn.addEventListener('click', e => { e.stopPropagation(); handleUpgrade(entry); });
+          bpActionGrid.appendChild(uBtn);
+        }
+
+        // Downgrade
+        if (tier > 0) {
+          const dwBtn = document.createElement('button');
+          dwBtn.className = 'bp-btn';
+          dwBtn.textContent = 'Downgrade';
+          dwBtn.addEventListener('click', e => { e.stopPropagation(); handleDowngrade(entry); });
+          bpActionGrid.appendChild(dwBtn);
+        }
+
+        // Rotate
+        const rBtn = document.createElement('button');
+        rBtn.className = 'bp-btn';
+        rBtn.textContent = 'Rotate';
+        rBtn.addEventListener('click', e => { e.stopPropagation(); handleRotate(entry); });
+        bpActionGrid.appendChild(rBtn);
+
+        // Dismantle
+        const dBtn = document.createElement('button');
+        dBtn.className = 'bp-btn';
+        dBtn.textContent = 'Dismantle';
+        dBtn.addEventListener('click', e => { e.stopPropagation(); handleDismantle(entry); });
+        bpActionGrid.appendChild(dBtn);
+
+        // Repair
+        const repBtn = document.createElement('button');
+        repBtn.className = 'bp-btn';
+        repBtn.textContent = 'Repair';
+        repBtn.disabled = (entry.hp || 0) >= (entry.maxHp || 100);
+        repBtn.addEventListener('click', e => { e.stopPropagation(); handleRepair(entry); });
+        bpActionGrid.appendChild(repBtn);
+      } else {
+        bpActionSection.style.display = 'none';
+      }
+
+      bpEl.classList.add('open');
+    }
+
+    function closeBlockPopup() {
+      // Remove placeholder entries (no mesh = from ground clicks, no building built)
+      for (let i = foundations.length - 1; i >= 0; i--) {
+        if (!foundations[i].building && !foundations[i].mesh) foundations.splice(i, 1);
+      }
+      clearSelectionOutline();
+      actionTarget = null;
+      bpEl.classList.remove('open');
+    }
+
+    function handleRotate(entry) {
+      if (!entry.building) return;
+      const r = ((entry.rotation || 0) + 1) % 4;
+      const center = getCellCenter(entry.cx, entry.cz);
+      (entry.buildingMeshes || []).forEach(m => {
+        const ox = m.position.x - center.x;
+        const oz = m.position.z - center.z;
+        const nx = ox * Math.cos(Math.PI / 2) - oz * Math.sin(Math.PI / 2);
+        const nz = ox * Math.sin(Math.PI / 2) + oz * Math.cos(Math.PI / 2);
+        m.position.x = center.x + nx;
+        m.position.z = center.z + nz;
+        m.rotation.y += Math.PI / 2;
+      });
+      (entry.colliderAABBs || []).forEach(a => {
+        const ci = buildingColliders.indexOf(a);
+        if (ci !== -1) buildingColliders.splice(ci, 1);
+      });
+      entry.rotation = r;
+      const newAABBs = getBuildingAABBs(center.x, center.z, entry.building, r);
+      newAABBs.forEach(a => buildingColliders.push(a));
+      entry.colliderAABBs = newAABBs;
+      showBlockPopup(entry);
       saveBuildings();
-    });
+    }
+
+    function handleUpgrade(entry) {
+      if (!entry.building) return;
+      const tiers = UPGRADE_TIERS[entry.building];
+      if (!tiers || entry.tier >= tiers.length - 1) return;
+      const nextTier = entry.tier + 1;
+      const cost = getBuildCost(entry.building, nextTier);
+      if (!hasItems(cost)) { sfxError(); showToast('Not enough resources'); return; }
+      const tDef = tiers[nextTier];
+      (entry.buildingMeshes || []).forEach(m => {
+        scene.remove(m);
+        const mi = buildingTargets.indexOf(m);
+        if (mi !== -1) buildingTargets.splice(mi, 1);
+      });
+      const center = getCellCenter(entry.cx, entry.cz);
+      const meshes = makeBuildingMesh(entry.building, tDef.color, false, 1);
+      meshes.forEach(m => {
+        m.position.x += center.x;
+        m.position.z += center.z;
+        if (entry.rotation) {
+          const ox = m.position.x - center.x;
+          const oz = m.position.z - center.z;
+          const r = entry.rotation * Math.PI / 2;
+          m.position.x = center.x + ox * Math.cos(r) - oz * Math.sin(r);
+          m.position.z = center.z + ox * Math.sin(r) + oz * Math.cos(r);
+          m.rotation.y += r;
+        }
+        scene.add(m);
+      });
+      entry.buildingMeshes = meshes;
+      meshes.forEach(m => buildingTargets.push(m));
+      entry.tier = nextTier;
+      entry.maxHp = tDef.maxHp;
+      entry.hp = Math.min(entry.hp || 0, tDef.maxHp);
+      refreshHpBar(entry);
+      spendItems(cost);
+      saveInventory();
+      sfxUpgrade();
+      animateFlash(center.x, center.z, 0xffdd55, 3);
+      showToast('Upgraded to ' + tDef.name);
+      showBlockPopup(entry);
+      saveBuildings();
+    }
+
+    function handleDowngrade(entry) {
+      if (!entry.building || !entry.tier) return;
+      const tiers = UPGRADE_TIERS[entry.building];
+      if (!tiers) return;
+      const prevTier = entry.tier - 1;
+      const tDef = tiers[prevTier];
+      (entry.buildingMeshes || []).forEach(m => {
+        scene.remove(m);
+        const mi = buildingTargets.indexOf(m);
+        if (mi !== -1) buildingTargets.splice(mi, 1);
+      });
+      const center = getCellCenter(entry.cx, entry.cz);
+      const meshes = makeBuildingMesh(entry.building, tDef.color, false, 1);
+      meshes.forEach(m => {
+        m.position.x += center.x;
+        m.position.z += center.z;
+        if (entry.rotation) {
+          const ox = m.position.x - center.x;
+          const oz = m.position.z - center.z;
+          const r = entry.rotation * Math.PI / 2;
+          m.position.x = center.x + ox * Math.cos(r) - oz * Math.sin(r);
+          m.position.z = center.z + ox * Math.sin(r) + oz * Math.cos(r);
+          m.rotation.y += r;
+        }
+        scene.add(m);
+      });
+      entry.buildingMeshes = meshes;
+      meshes.forEach(m => buildingTargets.push(m));
+      entry.tier = prevTier;
+      entry.maxHp = tDef.maxHp;
+      entry.hp = Math.min(entry.hp || 0, tDef.maxHp);
+      refreshHpBar(entry);
+      // Refund half the cost of the downgraded-to tier
+      const refundCost = getBuildCost(entry.building, prevTier);
+      const refund = {};
+      for (const k of Object.keys(refundCost)) refund[k] = Math.ceil(refundCost[k] / 2);
+      addItems(refund);
+      saveInventory();
+      showToast('Downgraded to ' + tDef.name);
+      showBlockPopup(entry);
+      saveBuildings();
+    }
+
+    function handleDismantle(entry) {
+      const captured = entry;
+      closeBlockPopup();
+      (captured.buildingMeshes || []).forEach(m => {
+        scene.remove(m);
+        const mi = buildingTargets.indexOf(m);
+        if (mi !== -1) buildingTargets.splice(mi, 1);
+      });
+      (captured.colliderAABBs || []).forEach(a => {
+        const ci = buildingColliders.indexOf(a);
+        if (ci !== -1) buildingColliders.splice(ci, 1);
+      });
+      removeHpBar(captured);
+      // Refund half the cost of the current tier
+      const refundCost = getBuildCost(captured.building, captured.tier || 0);
+      const refund = {};
+      for (const k of Object.keys(refundCost)) refund[k] = Math.ceil(refundCost[k] / 2);
+      addItems(refund);
+      saveInventory();
+      captured.building = null;
+      captured.buildingMeshes = null;
+      captured.rotation = 0;
+      captured.tier = 0;
+      captured.hp = 0;
+      sfxDismantle();
+      const dCenter = getCellCenter(captured.cx, captured.cz);
+      animateFlash(dCenter.x, dCenter.z, 0xcc6644, 2);
+      showToast('Building dismantled');
+      buildFoundationFrom(captured);
+      saveBuildings();
+    }
+
+    function handleRepair(entry) {
+      if (!entry.building) return;
+      if (entry.hp >= entry.maxHp) return;
+      const cost = getBuildCost(entry.building, entry.tier || 0);
+      const primary = Object.keys(cost)[0];
+      const healAmt = 50;
+      const repairCost = {};
+      if (primary) {
+        const needed = Math.ceil(healAmt / 20);
+        repairCost[primary] = needed;
+        if (!hasItems(repairCost)) { sfxError(); showToast('Not enough ' + ITEMS[primary]?.name?.toLowerCase() || primary); return; }
+        spendItems(repairCost);
+        saveInventory();
+      }
+      entry.hp = Math.min(entry.maxHp, (entry.hp || 0) + healAmt);
+      refreshHpBar(entry);
+      sfxRepair();
+      showToast('Repaired +' + healAmt + ' HP');
+      showBlockPopup(entry);
+      saveBuildings();
+    }
 
     // ── SAVE / LOAD ──────────────────────────────
     function saveBuildings() {
@@ -817,12 +1489,15 @@
       let data;
       try { data = JSON.parse(raw); } catch(e) {}
       if (!data) return;
+      const savedToast = showToast;
+      showToast = () => {};
       for (const d of data) {
         if (!d.building) continue;
         placeBuilding(d.cx, d.cz, d.building, d.rotation || 0);
         const entry = foundations[foundations.length - 1];
-        if (entry) { entry.tier = d.tier || 0; entry.hp = d.hp || 100; }
+        if (entry) { entry.tier = d.tier || 0; entry.hp = d.hp || 100; refreshHpBar(entry); }
       }
+      showToast = savedToast;
       saveBuildings();
     }
 
@@ -890,25 +1565,71 @@
 
     document.addEventListener('keydown', e => {
       state.keys[e.code] = true;
-      if (e.code.startsWith('Arrow')) e.preventDefault();
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyE','Escape'].includes(e.code)) {
+        e.preventDefault();
+      }
       if (e.code === 'KeyV') {
         state.mode = state.mode === 'isometric' ? 'third-person' : 'isometric';
         document.getElementById('mode-display').textContent =
           state.mode.toUpperCase().replace('-', ' ');
       }
-      if (e.code === 'KeyR' && selectedBuilding) {
-        rotateBuilding();
+      if (e.code === 'KeyE') {
+        if (inventoryOpen) { closeInventory(); }
+        else { openInventory(); }
+        return;
       }
       if (e.code === 'Escape') {
-        if (selectedBuilding) { deselectBuilding(); return; }
-        if (actionTarget) { closeActionPanel(); return; }
+        if (inventoryOpen) { closeInventory(); return; }
+        if (actionTarget) { closeBlockPopup(); return; }
         window.location.href = 'solar-system.html';
       }
-      // Hotbar shortcuts 1-5
+      // Hotbar slot preview (no action — items shown, building via popup)
       const num = parseInt(e.code.replace('Digit', ''));
-      if (num >= 1 && num <= typeKeys.length) selectBuilding(typeKeys[num - 1]);
+      if (num >= 1 && num <= ITEM_ORDER.length) {
+        const slots = hotbarEl.querySelectorAll('.hb-btn');
+        slots.forEach(s => s.classList.remove('active'));
+        if (slots[num - 1]) slots[num - 1].classList.add('active');
+        setTimeout(() => { if (slots[num - 1]) slots[num - 1].classList.remove('active'); }, 400);
+      }
     });
     document.addEventListener('keyup', e => { state.keys[e.code] = false; });
+
+    // ── INVENTORY ────────────────────────────────
+    let inventoryOpen = false;
+    const invOverlay = document.getElementById('inventory-overlay');
+    const invGrid = document.getElementById('inv-grid');
+
+    function openInventory() {
+      if (actionTarget) closeBlockPopup();
+      invGrid.innerHTML = '';
+      for (const key of ITEM_ORDER) {
+        const item = ITEMS[key];
+        const qty = playerInventory[key] || 0;
+        const card = document.createElement('div');
+        card.className = 'inv-card';
+        const swatch = document.createElement('div');
+        swatch.className = 'inv-swatch';
+        swatch.style.background = item.color;
+        card.appendChild(swatch);
+        const info = document.createElement('div');
+        info.className = 'inv-info';
+        info.innerHTML = '<div class="inv-name">' + item.name + ' <span style="float:right;color:#4a3f32;font-weight:700;">' + qty + '</span></div>';
+        card.appendChild(info);
+        invGrid.appendChild(card);
+      }
+      inventoryOpen = true;
+      invOverlay.classList.add('open');
+    }
+
+    function closeInventory() {
+      inventoryOpen = false;
+      invOverlay.classList.remove('open');
+    }
+
+    // Close inventory on overlay backdrop click
+    invOverlay.addEventListener('click', e => {
+      if (e.target === invOverlay) closeInventory();
+    });
 
     renderer.domElement.addEventListener('mousemove', e => {
       const nx = (e.clientX / window.innerWidth) * 2 - 1;
@@ -924,13 +1645,12 @@
         const cell = getCell(intersectPoint.x, intersectPoint.z);
         const center = getCellCenter(cell.cx, cell.cz);
         hoverMesh.position.set(center.x, 0.06, center.z);
-        hoverMesh.visible = true;
         hoverOutline.position.set(center.x, 0.065, center.z);
-        hoverOutline.visible = true;
+        const showHover = !actionTarget;
+        hoverMesh.visible = showHover;
+        hoverOutline.visible = showHover;
         hoveredCell = cell;
         document.getElementById('pos-cell').textContent = `Cell: ${cell.cx}, ${cell.cz}`;
-
-        if (selectedBuilding) updateGhost(cell.cx, cell.cz);
       }
     });
 
@@ -938,36 +1658,55 @@
     const clickMouse = new THREE.Vector2();
 
     renderer.domElement.addEventListener('click', e => {
-      if (selectedBuilding && hoveredCell) {
-        placeBuilding(hoveredCell.cx, hoveredCell.cz, selectedBuilding, buildRotation);
-        return;
-      }
-
       clickMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       clickMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       clickRay.setFromCamera(clickMouse, camera);
+
+      // Resource gathering (click trees/rocks to mine)
+      const resourceHits = clickRay.intersectObjects(resourceTargets);
+      if (resourceHits.length > 0) {
+        const hit = resourceHits[0].object;
+        const group = hit.userData.resourceGroup;
+        if (group && group.userData.respawnTimer === null) {
+          mineResource(group);
+        }
+        return;
+      }
 
       const buildingHits = clickRay.intersectObjects(buildingTargets);
       if (buildingHits.length > 0) {
         const hitMesh = buildingHits[0].object;
         const entry = foundations.find(f => f.buildingMeshes && f.buildingMeshes.includes(hitMesh));
-        if (entry) { openActionPanel(entry); return; }
+        if (entry) { showBlockPopup(entry); return; }
       }
 
       const foundationHits = clickRay.intersectObjects(foundationTargets);
       if (foundationHits.length > 0) {
         const hitMesh = foundationHits[0].object;
         const entry = foundations.find(f => f.mesh === hitMesh);
-        if (entry && !entry.building) { openActionPanel(entry); return; }
+        if (entry && !entry.building) { showBlockPopup(entry); return; }
       }
 
-      if (actionTarget) closeActionPanel();
+      // Click on empty ground → show build popup (no visible foundation)
+      if (clickRay.ray.intersectPlane(groundPlane, intersectPoint)) {
+        const cell = getCell(intersectPoint.x, intersectPoint.z);
+        const pc = getCell(player.position.x, player.position.z);
+        if (cell.cx !== pc.cx || cell.cz !== pc.cz) {
+          let entry = foundations.find(f => f.cx === cell.cx && f.cz === cell.cz);
+          if (!entry && !foundations.some(f => f.cx === cell.cx && f.cz === cell.cz && f.building)) {
+            entry = { cx: cell.cx, cz: cell.cz, mesh: null, edge: null, building: null, buildingMeshes: null, collider: null, tier: 0, hp: 0, maxHp: 100 };
+            foundations.push(entry);
+          }
+          if (entry && !entry.building) { showBlockPopup(entry); return; }
+        }
+      }
+
+      if (actionTarget) closeBlockPopup();
     });
 
     renderer.domElement.addEventListener('contextmenu', e => {
       e.preventDefault();
-      if (selectedBuilding) deselectBuilding();
-      else if (actionTarget) closeActionPanel();
+      if (actionTarget) closeBlockPopup();
     });
 
     renderer.domElement.addEventListener('wheel', e => {
@@ -1062,6 +1801,27 @@
       camera.position.copy(state.smoothPos);
       camera.lookAt(state.smoothTarget);
 
+      hpBarMeshes.forEach(h => {
+        h.bg.lookAt(camera.position);
+        h.fill.lookAt(camera.position);
+        const target = h.fill.userData.targetScale;
+        if (target !== undefined) {
+          h.fill.scale.x += (target - h.fill.scale.x) * Math.min(1, 8 * dt);
+        }
+      });
+
+      if (selectionOutline) {
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.003);
+        selectionOutline.forEach(l => { l.material.opacity = 0.5 + 0.3 * pulse; });
+      }
+
+      const t = performance.now() * 0.001;
+      resourceNodes.forEach((g, i) => {
+        if (g.visible && g.children.length > 0) {
+          g.position.y = Math.sin(t * 0.8 + i * 0.7) * 0.03;
+        }
+      });
+
       document.getElementById('pos-x').textContent = 'X: ' + Math.round(player.position.x);
       document.getElementById('pos-z').textContent = 'Z: ' + Math.round(player.position.z);
     }
@@ -1095,7 +1855,9 @@
     // ── DISMISS LOADING ──────────────────────────
     setTimeout(() => {
       document.getElementById('loading').classList.add('hidden');
+      loadInventory();
       loadBuildings();
+      generateResources();
     }, 200);
   </script>
 </body>
