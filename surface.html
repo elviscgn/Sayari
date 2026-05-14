@@ -365,6 +365,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
   <script>
     // ── PLANET DATA ─────────────────────────────
@@ -392,6 +393,18 @@
     const CELL = 45;
     const CELLS = TS / CELL;
     const HALF = TS / 2;
+
+    let factoryModelScene = null;
+    (function loadFactoryModel() {
+      const loader = new THREE.GLTFLoader();
+      loader.load('assets/factory.glb', gltf => {
+        factoryModelScene = gltf.scene;
+        factoryModelScene.scale.set(1, 1, 1);
+        factoryModelScene.traverse(c => {
+          if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+        });
+      }, undefined, () => {});
+    })();
 
     // ── NOISE (for ground color variation only) ──
     function hash2D(x, z, seed) {
@@ -666,6 +679,7 @@
     function sfxClick() { playTone(880, 0.04, 'sine', 0.02); }
     function sfxDismantle() { playTone(300, 0.15, 'sawtooth', 0.04); }
     function sfxRepair() { playTone(520, 0.1, 'triangle', 0.04); }
+    function sfxProcess() { playTone(880, 0.08, 'sine', 0.04); playTone(1100, 0.06, 'sine', 0.03); }
 
     // ── AMBIENT MUSIC (procedural per planet) ─────
     let ambientNodes = [];
@@ -1057,6 +1071,7 @@
       workshop: { name: 'Workshop',      color: 0xaa88cc, desc: 'Crafting station' },
       gate:     { name: 'Gate',          color: 0x8a7a5a, desc: 'Fortified entryway' },
       beacon:   { name: 'Beacon',        color: 0xd4a84a, desc: 'Navigation signal' },
+      factory:  { name: 'Factory',       color: 0xcc8844, desc: 'Automated production' },
     };
 
     const UPGRADE_TIERS = {
@@ -1098,6 +1113,11 @@
         { name: 'Lighthouse', color: 0xe0b85a, maxHp: 100 },
         { name: 'Signal Tower', color: 0xecc86a, maxHp: 140 },
       ],
+      factory: [
+        { name: 'Workshop', color: 0xcc8844, maxHp: 100 },
+        { name: 'Factory', color: 0xdd9955, maxHp: 180 },
+        { name: 'Automaton', color: 0xeeaa66, maxHp: 280 },
+      ],
     };
 
     // ── ITEMS (resources used to build infrastructure) ──
@@ -1108,6 +1128,12 @@
       vibranium:  { name: 'Vibranium',  color: '#8844cc', icon: 'assets/vibranium.png' },
       electronics:{ name: 'Electronics',color: '#44cc88' },
       scrap:      { name: 'Scrap',      color: '#cc8844', icon: 'assets/scrap.png' },
+      plank:        { name: 'Plank',          color: '#c4954a', icon: 'assets/wood.png' },
+      refined_stone:{ name: 'Refined Stone',  color: '#909090', icon: 'assets/stone.png' },
+      refined_metal:{ name: 'Refined Metal',  color: '#5599dd', icon: 'assets/metal.png' },
+      refined_vib:  { name: 'Refined Vibranium', color: '#9955dd', icon: 'assets/vibranium.png' },
+      recycled:     { name: 'Recycled Mat.',  color: '#cc9955', icon: 'assets/scrap.png' },
+      circuit:      { name: 'Circuit',        color: '#55dd99' },
     };
 
     const ITEM_ORDER = ['wood','stone','metal','vibranium','electronics','scrap'];
@@ -1121,6 +1147,20 @@
       workshop: [{ wood:15,stone:5 },      { metal:10 },              { electronics:10,metal:5 }],
       gate:     [{ wood:8 },               { stone:8 },               { metal:8 },               { vibranium:8 }],
       beacon:   [{ wood:5,stone:5 },       { metal:5,electronics:3 }, { electronics:8,metal:5 }],
+      factory:  [{ wood:20,stone:10 },     { metal:15,electronics:5 },{ refined_metal:10,circuit:5 }],
+    };
+
+    const PROCESS_RECIPES = {
+      workshop: [
+        { input: { wood: 3 }, output: { plank: 1 }, energy: 10, label: 'Plank' },
+        { input: { stone: 3 }, output: { refined_stone: 1 }, energy: 10, label: 'R.Stone' },
+        { input: { scrap: 3 }, output: { recycled: 1 }, energy: 5, label: 'Recycled' },
+      ],
+      lab: [
+        { input: { metal: 3 }, output: { refined_metal: 1 }, energy: 15, label: 'R.Metal' },
+        { input: { vibranium: 3 }, output: { refined_vib: 1 }, energy: 20, label: 'R.Vib.' },
+        { input: { electronics: 2 }, output: { circuit: 1 }, energy: 15, label: 'Circuit' },
+      ],
     };
 
     function getBuildCost(typeKey, tier) {
@@ -1130,14 +1170,14 @@
     }
 
     const PLANET_BUILDS = {
-      Mercury: ['wall', 'turret', 'storage', 'workshop', 'gate'],
-      Venus:   ['wall', 'turret', 'solar', 'storage', 'workshop', 'gate', 'beacon'],
-      Earth:   ['wall', 'turret', 'solar', 'storage', 'workshop', 'gate', 'beacon'],
-      Mars:    ['wall', 'turret', 'storage', 'workshop', 'gate'],
-      Jupiter: ['wall', 'turret', 'storage', 'gate'],
-      Saturn:  ['wall', 'turret', 'solar', 'storage', 'gate', 'beacon'],
-      Uranus:  ['wall', 'storage', 'workshop', 'gate'],
-      Neptune: ['wall', 'storage', 'workshop', 'gate'],
+      Mercury: ['wall', 'turret', 'storage', 'workshop', 'gate', 'factory'],
+      Venus:   ['wall', 'turret', 'solar', 'storage', 'workshop', 'gate', 'beacon', 'factory'],
+      Earth:   ['wall', 'turret', 'solar', 'storage', 'workshop', 'gate', 'beacon', 'factory'],
+      Mars:    ['wall', 'turret', 'storage', 'workshop', 'gate', 'factory'],
+      Jupiter: ['wall', 'turret', 'storage', 'gate', 'factory'],
+      Saturn:  ['wall', 'turret', 'solar', 'storage', 'gate', 'beacon', 'factory'],
+      Uranus:  ['wall', 'storage', 'workshop', 'gate', 'factory'],
+      Neptune: ['wall', 'storage', 'workshop', 'gate', 'factory'],
     };
 
     let typeKeys = PLANET_BUILDS[PLANET_NAME] || Object.keys(BUILDING_TYPES);
@@ -1147,6 +1187,7 @@
 
     function initInventory() {
       for (const k of ITEM_ORDER) playerInventory[k] = 0;
+      ['plank','refined_stone','refined_metal','refined_vib','recycled','circuit'].forEach(k => playerInventory[k] = 0);
       playerInventory.wood = 5;
       playerInventory.stone = 5;
       playerInventory.metal = 3;
@@ -1196,7 +1237,8 @@
         try {
           const data = JSON.parse(raw);
           initInventory();
-          for (const k of ITEM_ORDER) {
+          const allLoadKeys = [...ITEM_ORDER, 'plank','refined_stone','refined_metal','refined_vib','recycled','circuit'];
+          for (const k of allLoadKeys) {
             if (typeof data[k] === 'number') playerInventory[k] = data[k];
           }
         } catch(e) { initInventory(); }
@@ -1399,6 +1441,26 @@
         const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 1.2), mat);
         base.position.set(0, 0.15, 0);
         meshes.push(base);
+      } else if (typeKey === 'factory') {
+        if (factoryModelScene) {
+          const clone = factoryModelScene.clone();
+          clone.position.set(0, 0, 0);
+          clone.scale.set(1, 1, 1);
+          clone.traverse(c => {
+            if (c.isMesh) {
+              c.material = c.material.clone();
+              c.material.color.setHex(color);
+              c.material.transparent = transparent;
+              c.material.opacity = opacity;
+            }
+          });
+          meshes.push(clone);
+        } else {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, 2.0, CELL - 1), mat);
+          m.position.set(0, 1.0, 0);
+          meshes.push(m);
+          showToast('Factory model still loading...');
+        }
       } else {
         const m = new THREE.Mesh(new THREE.BoxGeometry(CELL - 1, 1.0, CELL - 1), mat);
         m.position.set(0, 0.5, 0);
@@ -1422,6 +1484,7 @@
       if (typeKey === 'solar') return [aabbFromBox(cx, cz, halfCell, CELL * 0.3, ry)];
       if (typeKey === 'gate') return [aabbFromBox(cx, cz, CELL / 2, 0.4, ry)];
       if (typeKey === 'beacon') return [aabbFromBox(cx, cz, 0.8, 0.8, 0)];
+      if (typeKey === 'factory') return [aabbFromBox(cx, cz, CELL / 2, CELL / 2, 0)];
       return [aabbFromBox(cx, cz, halfCell, halfCell, ry)];
     }
 
@@ -1788,11 +1851,40 @@
         repBtn.disabled = (entry.hp || 0) >= (entry.maxHp || 100);
         repBtn.addEventListener('click', e => { e.stopPropagation(); handleRepair(entry); });
         bpActionGrid.appendChild(repBtn);
+
+        // Processing (Workshop / Lab / Research Center)
+        if (entry.building === 'workshop') {
+          const recipes = tier === 0
+            ? PROCESS_RECIPES.workshop
+            : [...PROCESS_RECIPES.workshop, ...PROCESS_RECIPES.lab];
+          recipes.forEach(r => {
+            const pBtn = document.createElement('button');
+            pBtn.className = 'bp-btn';
+            pBtn.textContent = r.label;
+            const costStr = Object.entries(r.input).map(([k,v]) => v + ' ' + ITEMS[k].name).join(' + ');
+            const outStr = Object.entries(r.output).map(([k,v]) => v + ' ' + ITEMS[k].name).join(' + ');
+            pBtn.title = costStr + ' → ' + outStr + ' (' + r.energy + ' EN)';
+            pBtn.disabled = !hasItems(r.input) || playerStats.energy < r.energy;
+            pBtn.addEventListener('click', e => {
+              e.stopPropagation();
+              if (!hasItems(r.input)) { sfxError(); showToast('Not enough materials'); return; }
+              if (playerStats.energy < r.energy) { sfxError(); showToast('Not enough energy'); return; }
+              spendItems(r.input);
+              addItems(r.output);
+              drainEnergy(r.energy);
+              sfxProcess();
+              saveInventory();
+              showToast('Processed ' + outStr);
+              showBlockPopup(entry);
+            });
+            bpActionGrid.appendChild(pBtn);
+          });
+        }
       } else {
         bpActionSection.style.display = 'none';
       }
 
-      bpEl.showPopover();
+      if (!bpEl.matches(':popover-open')) bpEl.showPopover();
     }
 
     function closeBlockPopup() {
@@ -2140,7 +2232,8 @@
     function openInventory() {
       if (actionTarget) closeBlockPopup();
       invGrid.innerHTML = '';
-      const hasItems = ITEM_ORDER.filter(k => (playerInventory[k] || 0) > 0);
+      const allKeys = [...ITEM_ORDER, 'plank','refined_stone','refined_metal','refined_vib','recycled','circuit'];
+      const hasItems = allKeys.filter(k => (playerInventory[k] || 0) > 0);
       if (hasItems.length === 0) {
         const empty = document.createElement('div');
         empty.style.cssText = 'grid-column:1/-1;text-align:center;font-size:10px;letter-spacing:0.2em;color:#8a7f72;padding:20px 0;font-weight:600;text-transform:uppercase;';

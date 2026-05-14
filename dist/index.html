@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planet Surface</title>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script type="module" crossorigin src="/assets/index-Db_X-exB.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-B_sKTq4h.css">
+</head>
+<body>
+  <div id="loading">
+    <div style="font-size:14px;letter-spacing:0.5em;color:#6a5f52;text-transform:uppercase;margin-bottom:32px;font-weight:700;">Generating Terrain</div>
+    <div style="font-size:12px;letter-spacing:0.3em;color:#8a7f72;text-transform:uppercase;font-weight:600;" id="loading-name"></div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div id="hud">
+    <div id="hud-top">
+      <div class="hud-pill" id="title-block">
+        <h1 id="planet-name-display">Planet</h1>
+        <div class="sub" id="planet-type-display">Surface</div>
+      </div>
+      <div id="hud-right">
+        <div class="hud-pill" id="status-block">
+          <div class="mode-label">Camera</div>
+          <div class="mode-value" id="mode-display">ISOMETRIC</div>
+        </div>
+        <div class="hud-pill" id="player-stats">
+          <div class="stat-row">
+            <span class="stat-label" data-full="Health">HP</span>
+            <div class="stat-track"><div class="stat-fill health-fill" id="health-fill"></div></div>
+            <span class="stat-num" id="health-num">100</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-full="Energy">EN</span>
+            <div class="stat-track"><div class="stat-fill energy-fill" id="energy-fill"></div></div>
+            <span class="stat-num" id="energy-num">100</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-full="Stamina">ST</span>
+            <div class="stat-track"><div class="stat-fill stamina-fill" id="stamina-fill"></div></div>
+            <span class="stat-num" id="stamina-num">100</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button id="back-to-space">Back to Space</button>
+
+  <div id="tool-indicator"></div>
+  <div id="hotbar"></div>
+
+  <div id="block-popup" popover="auto">
+    <div class="bp-scroll">
+      <div class="bp-title" id="bp-title">New Construction</div>
+      <div class="bp-coords" id="bp-coords"></div>
+      <div class="bp-hp-wrap" id="bp-hp-wrap">
+        <div class="bp-hp-bar"><div class="bp-hp-fill" id="bp-hp-fill"></div></div>
+        <div class="bp-hp-label" id="bp-hp-label">HP 100/100</div>
+      </div>
+      <div class="bp-section" id="bp-build-section">
+        <div class="bp-section-label">Select Type</div>
+        <div class="bp-grid" id="bp-build-grid"></div>
+      </div>
+      <div class="bp-section" id="bp-action-section">
+        <div class="bp-section-label">Actions</div>
+        <div class="bp-grid" id="bp-action-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="inventory-overlay">
+    <div id="inventory-panel">
+      <button id="inv-close">✕</button>
+      <div id="inv-title">Inventory</div>
+      <div id="inv-grid"></div>
+      <div id="inv-hint">E / C · Close &nbsp;&nbsp; Click · Select</div>
+    </div>
+  </dialog>
+
+  <button id="help-toggle">[?] Help</button>
+
+  <div id="info-bar">
+    <div id="controls-hint">
+      <span class="hint-col">
+        Arrows/WASD · Move<br>
+        Click resources · Mine<br>
+        E/C · Inventory<br>
+        Click ground · Build<br>
+      </span>
+      <span class="hint-col">
+        Click building · Actions<br>
+        <span id="hint-keys">1-6</span> · Tools<br>
+        V · Camera<br>
+        ESC · Back
+      </span>
+    </div>
+    <div id="coords">
+      <div id="pos-x">X: 0</div>
+      <div id="pos-z">Z: 0</div>
+      <div id="pos-cell">Cell: 0, 0</div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+</body>
+</html>
