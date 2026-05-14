@@ -269,7 +269,7 @@ export function mineResource(group, hitMesh, ctx) {
   if (now - ctx.lastMineTime < ctx.MINE_COOLDOWN) return;
   if (ctx.playerStats.energy < 3) { ctx.showToast('Too tired — rest to regain energy'); return; }
   ctx.lastMineTime = now;
-  ctx.drainEnergy(3, ctx);
+  ctx.drainEnergy(3);
 
   const def = RESOURCE_TYPES[group.userData.typeKey];
   const toolTier = ctx.equippedTool ? (ctx.TOOLS[ctx.equippedTool.key] ? ctx.TOOLS[ctx.equippedTool.key].tier : 0) : 0;

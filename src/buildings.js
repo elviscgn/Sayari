@@ -27,14 +27,14 @@ export const ITEMS = {
   stone:       { name:'Stone', color:'#808080', icon:'assets/stone.png' },
   metal:       { name:'Metal', color:'#4488cc', icon:'assets/metal.png' },
   vibranium:   { name:'Vibranium', color:'#8844cc', icon:'assets/vibranium.png' },
-  electronics: { name:'Electronics', color:'#44cc88' },
+  electronics: { name:'Electronics', color:'#44cc88', icon:'assets/circuit.png' },
   scrap:       { name:'Scrap', color:'#cc8844', icon:'assets/scrap.png' },
   plank:       { name:'Plank', color:'#c4954a', icon:'assets/wood.png' },
   refined_stone:{name:'Refined Stone', color:'#909090', icon:'assets/stone.png' },
   refined_metal:{name:'Refined Metal', color:'#5599dd', icon:'assets/metal.png' },
   refined_vib: { name:'Refined Vibranium', color:'#9955dd', icon:'assets/vibranium.png' },
   recycled:    { name:'Recycled Mat.', color:'#cc9955', icon:'assets/scrap.png' },
-  circuit:     { name:'Circuit', color:'#55dd99' },
+  circuit:     { name:'Circuit', color:'#55dd99', icon:'assets/circuit.png' },
 };
 export const ITEM_ORDER = ['wood','stone','metal','vibranium','electronics','scrap'];
 
@@ -517,7 +517,7 @@ export function showBlockPopup(entry, ctx) {
           e.stopPropagation();
           if (!ctx.hasItems(r.input)) { ctx.sfxError(); ctx.showToast('Not enough materials'); return; }
           if (ctx.playerStats.energy < r.energy) { ctx.sfxError(); ctx.showToast('Not enough energy'); return; }
-          ctx.spendItems(r.input); ctx.addItems(r.output); ctx.drainEnergy(r.energy, ctx);
+          ctx.spendItems(r.input); ctx.addItems(r.output); ctx.drainEnergy(r.energy);
           ctx.sfxProcess(); ctx.saveInventory();
           ctx.showToast('Processed ' + outStr);
           showBlockPopup(entry, ctx);

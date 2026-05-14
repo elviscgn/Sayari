@@ -79,8 +79,11 @@ const ctx = {
   placeFoundation, canPlaceAt, placeBuilding,
   showBlockPopup, closeBlockPopup,
   handleRotate, handleUpgrade, handleDowngrade, handleDismantle, handleRepair,
-  createHpBar, refreshHpBar, updateHpBars,
-  saveBuildings, loadBuildings,
+  createHpBar: (entry) => createHpBar(entry, ctx),
+  refreshHpBar: (entry) => refreshHpBar(entry, ctx),
+  updateHpBars: (dt) => updateHpBars(dt, ctx),
+  saveBuildings: () => saveBuildings(ctx),
+  loadBuildings: () => loadBuildings(ctx),
   generateResources, mineResource, spawnParticles, getCell, getCellCenter,
   updateStatsUI: (args) => updateStatsUI(args, ctx),
   drainEnergy: (amount) => drainEnergy(amount, ctx),
@@ -102,6 +105,7 @@ const ctx = {
   equippedTool: null,
   hpBarMeshes: [],
   factoryModelScene: null,
+  musicMuted: false,
   state: {
     mode: 'isometric', zoom: 1, pitch: Math.PI / 3, yaw: Math.PI / 4, dist: 120,
     playerDir: 0, keys: {},
@@ -154,6 +158,10 @@ function startAmbientMusic() {
   if (ambientStarted) return;
   try {
     initAudio(); if (!audioCtx) return; ambientStarted = true;
+    const master = audioCtx.createGain();
+    master.gain.setValueAtTime(ctx.musicMuted ? 0 : 1, audioCtx.currentTime);
+    master.connect(audioCtx.destination);
+    ctx.ambientMaster = master;
     const baseIdx = SEED % 12;
     const SCALE = [0,2,4,5,7,9,11];
     const note = 55 + SCALE[baseIdx % SCALE.length] + Math.floor(SEED/12)*12;
@@ -164,7 +172,7 @@ function startAmbientMusic() {
       const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
       osc.type = 'sine'; osc.frequency.setValueAtTime(f + (i-1)*0.3, audioCtx.currentTime);
       gain.gain.setValueAtTime(0.025 - i*0.005, audioCtx.currentTime);
-      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.connect(gain); gain.connect(master);
       osc.start(); oscs.push(osc); gains.push(gain);
       ambientNodes.push(osc, gain);
     }
@@ -176,12 +184,12 @@ function startAmbientMusic() {
     const fifth = audioCtx.createOscillator(), fifthGain = audioCtx.createGain();
     fifth.type = 'sine'; fifth.frequency.setValueAtTime(baseFreq*1.5, audioCtx.currentTime);
     fifthGain.gain.setValueAtTime(0.012, audioCtx.currentTime);
-    fifth.connect(fifthGain); fifthGain.connect(audioCtx.destination);
+    fifth.connect(fifthGain); fifthGain.connect(master);
     fifth.start(); ambientNodes.push(fifth, fifthGain);
     function scheduleChime() {
       if (!ambientStarted) return;
       setTimeout(() => {
-        if (!ambientStarted) return;
+        if (!ambientStarted || ctx.musicMuted) { scheduleChime(); return; }
         playTone(baseFreq * Math.pow(2, SCALE[Math.floor(Math.random()*SCALE.length)]/12) * 2, 0.6+Math.random()*0.4, 'sine', 0.015);
         scheduleChime();
       }, 4000 + Math.random() * 8000);
@@ -217,12 +225,18 @@ ctx.saveInventory = function() {
   try { localStorage.setItem('safayi_equipped_' + PLANET_NAME, JSON.stringify(ctx.equippedTool)); } catch(e) {}
 };
 
-ctx.drainEnergy = drainEnergy;
 ctx.PLAYER_RADIUS = PLAYER_RADIUS;
 ctx.showToast = function(msg) {
   const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
   toastContainer.appendChild(el);
   setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 250); }, 2000);
+};
+ctx.toggleMusicMute = function() {
+  ctx.musicMuted = !ctx.musicMuted;
+  if (audioCtx && ctx.ambientMaster) {
+    ctx.ambientMaster.gain.setValueAtTime(ctx.musicMuted ? 0 : 1, audioCtx.currentTime);
+  }
+  ctx.showToast(ctx.musicMuted ? '🔇 Music muted' : '🔊 Music unmuted');
 };
 
 // ── TOAST CONTAINER ──
@@ -257,9 +271,10 @@ const clickMouse = new THREE.Vector2();
 
 document.addEventListener('keydown', e => {
   ctx.state.keys[e.code] = true;
-  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyC','KeyE','Escape','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6'].includes(e.code)) e.preventDefault();
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyC','KeyE','KeyM','Escape','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6'].includes(e.code)) e.preventDefault();
 
   if (e.code === 'KeyV') { toggleMode(ctx); }
+  if (e.code === 'KeyM') { ctx.toggleMusicMute(); }
   if (e.code === 'KeyE' || e.code === 'KeyC') {
     if (ctx.inventoryOpen) { closeInventory(ctx); } else { openInventory(ctx); }
     return;

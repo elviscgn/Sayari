@@ -1,5 +1,12 @@
 import { ITEMS, ITEM_ORDER } from '../buildings.js';
 
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 export function init(ctx) {
   ctx.inventoryOpen = false;
   ctx.invOverlay = document.getElementById('inventory-overlay');
@@ -15,9 +22,14 @@ export function openInventory(ctx) {
   const allKeys = [...ITEM_ORDER, 'plank','refined_stone','refined_metal','refined_vib','recycled','circuit'];
   const hasItems = allKeys.filter(k => (ctx.playerInventory[k] || 0) > 0);
 
+  const resHeader = document.createElement('div');
+  resHeader.className = 'section-label';
+  resHeader.textContent = 'MATERIALS';
+  ctx.invGrid.appendChild(resHeader);
+
   if (hasItems.length === 0) {
     const empty = document.createElement('div');
-    empty.style.cssText = 'grid-column:1/-1;text-align:center;font-size:10px;letter-spacing:0.2em;color:#8a7f72;padding:20px 0;font-weight:600;text-transform:uppercase;';
+    empty.className = 'inv-empty';
     empty.textContent = 'Empty pockets';
     ctx.invGrid.appendChild(empty);
   } else {
@@ -26,71 +38,106 @@ export function openInventory(ctx) {
       const qty = ctx.playerInventory[key] || 0;
       const card = document.createElement('div');
       card.className = 'inv-card';
+      card.style.background = `linear-gradient(135deg, ${hexToRgba(item.color, 0.1)}, ${hexToRgba(item.color, 0.03)})`;
+      card.style.borderColor = hexToRgba(item.color, 0.15);
       let swatch;
       if (item.icon) { swatch = document.createElement('img'); swatch.className = 'inv-swatch'; swatch.src = item.icon; swatch.alt = item.name; }
       else { swatch = document.createElement('div'); swatch.className = 'inv-swatch'; swatch.style.background = item.color; }
       card.appendChild(swatch);
-      const info = document.createElement('div');
-      info.className = 'inv-info';
-      info.innerHTML = '<div class="inv-name">' + item.name + ' <span class="inv-count">' + qty + '</span></div>';
-      card.appendChild(info);
+      const name = document.createElement('span');
+      name.className = 'inv-name';
+      name.textContent = item.name;
+      card.appendChild(name);
+      const count = document.createElement('span');
+      count.className = 'inv-count';
+      count.textContent = qty;
+      card.appendChild(count);
       ctx.invGrid.appendChild(card);
     });
   }
 
   const toolHeader = document.createElement('div');
-  toolHeader.style.cssText = 'grid-column:1/-1;font-size:9px;letter-spacing:0.3em;color:#8a7f72;text-transform:uppercase;font-weight:600;border-top:1px solid rgba(74,63,50,0.08);padding-top:12px;margin-top:4px;text-align:center;';
-  toolHeader.textContent = 'Tools';
+  toolHeader.className = 'section-label';
+  toolHeader.textContent = 'TOOLS';
   ctx.invGrid.appendChild(toolHeader);
 
   Object.keys(ctx.TOOLS).forEach(key => {
     const def = ctx.TOOLS[key];
     const owned = ctx.playerTools[key] || 0;
+    const isEquipped = ctx.equippedTool && ctx.equippedTool.key === key;
+    const canCraft = Object.keys(def.craft).every(k => (ctx.playerInventory[k] || 0) >= def.craft[k]);
+
     const card = document.createElement('div');
     card.className = 'tool-card';
+    if (isEquipped) card.classList.add('equipped');
+    if (!owned && !canCraft) card.classList.add('locked');
+    card.style.borderLeftColor = def.color;
 
-    const swatch = document.createElement('div');
-    swatch.style.cssText = 'width:20px;height:20px;border-radius:3px;flex-shrink:0;background:' + def.color + ';';
-    card.appendChild(swatch);
+    const icon = document.createElement('div');
+    icon.className = 'tool-icon';
+    icon.style.background = `linear-gradient(135deg, ${def.color}, ${hexToRgba(def.color, 0.6)})`;
+    icon.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,0.2), 0 2px 4px rgba(0,0,0,0.1)`;
+    card.appendChild(icon);
 
     const info = document.createElement('div');
-    info.style.cssText = 'flex:1;min-width:0;';
+    info.className = 'tool-info';
+
     const nameLine = document.createElement('div');
-    nameLine.style.cssText = 'font-size:10px;letter-spacing:0.15em;font-weight:700;color:#3a2f22;text-transform:uppercase;';
+    nameLine.className = 'tool-name';
     nameLine.textContent = def.name;
     info.appendChild(nameLine);
 
-    const costLine = document.createElement('div');
-    costLine.style.cssText = 'font-size:8px;letter-spacing:0.1em;color:#8a7f72;margin-top:2px;font-weight:600;';
-    const parts = [];
+    const reqs = document.createElement('div');
+    reqs.className = 'tool-reqs';
     Object.keys(def.craft).forEach(k => {
       const need = def.craft[k];
       const have = ctx.playerInventory[k] || 0;
-      const color = have >= need ? '#5a8a6a' : '#cc4444';
-      parts.push('<span style="color:' + color + ';">' + have + '/' + need + ' ' + (ITEMS[k] ? ITEMS[k].name.toLowerCase() : k) + '</span>');
+      const met = have >= need;
+      const pill = document.createElement('span');
+      pill.className = 'pill' + (met ? '' : ' unmet');
+      const dot = document.createElement('span');
+      dot.className = 'dot' + (met ? ' met' : ' unmet');
+      pill.appendChild(dot);
+      const label = document.createElement('span');
+      label.textContent = need + ' ' + (ITEMS[k] ? ITEMS[k].name.toLowerCase() : k);
+      pill.appendChild(label);
+      reqs.appendChild(pill);
     });
-    costLine.innerHTML = parts.join('  ');
-    info.appendChild(costLine);
+    info.appendChild(reqs);
 
     if (owned > 0) {
       const durPct = Math.round((owned / def.maxDurability) * 100);
-      const barOuter = document.createElement('div');
-      barOuter.style.cssText = 'height:3px;background:rgba(74,63,50,0.08);border-radius:2px;margin-top:4px;overflow:hidden;';
-      const barFill = document.createElement('div');
-      barFill.style.cssText = 'height:100%;width:' + durPct + '%;background:' + (durPct>50?'#5a8a6a':durPct>25?'#b8954a':'#cc4444') + ';border-radius:2px;';
-      barOuter.appendChild(barFill);
-      info.appendChild(barOuter);
+      const durRow = document.createElement('div');
+      durRow.className = 'dur-row';
+      const bar = document.createElement('div');
+      bar.className = 'dur-bar';
+      const fill = document.createElement('div');
+      fill.className = 'dur-fill';
+      let fillColor;
+      if (durPct > 50) fillColor = '#5a8a6a';
+      else if (durPct > 25) fillColor = '#b8954a';
+      else fillColor = '#cc4444';
+      fill.style.width = durPct + '%';
+      fill.style.background = fillColor;
+      fill.style.boxShadow = '0 0 8px ' + fillColor;
+      bar.appendChild(fill);
+      durRow.appendChild(bar);
+      const pct = document.createElement('span');
+      pct.className = 'dur-pct';
+      pct.textContent = durPct + '%';
+      durRow.appendChild(pct);
+      info.appendChild(durRow);
     }
+
     card.appendChild(info);
 
     const btn = document.createElement('button');
-    btn.style.cssText = 'padding:5px 10px;font-size:8px;letter-spacing:0.15em;font-weight:600;text-transform:uppercase;border-radius:3px;cursor:pointer;font-family:inherit;border:1px solid rgba(74,63,50,0.12);transition:all 0.1s;';
+    btn.className = 'tool-btn';
     if (owned > 0) {
-      const isEquipped = ctx.equippedTool && ctx.equippedTool.key === key;
       btn.textContent = isEquipped ? 'Equipped' : 'Equip';
-      btn.style.background = isEquipped ? 'rgba(212,168,74,0.15)' : 'rgba(74,63,50,0.04)';
-      btn.style.color = isEquipped ? '#b8954a' : '#6a5f52';
       btn.disabled = isEquipped;
+      if (isEquipped) btn.classList.add('active');
+      else btn.classList.add('equip');
       if (!isEquipped) {
         btn.addEventListener('click', e => {
           e.stopPropagation();
@@ -102,11 +149,10 @@ export function openInventory(ctx) {
         });
       }
     } else {
-      const canCraft = Object.keys(def.craft).every(k => (ctx.playerInventory[k] || 0) >= def.craft[k]);
       btn.textContent = canCraft ? 'Craft' : 'Need materials';
-      btn.style.background = canCraft ? 'rgba(90,138,106,0.12)' : 'rgba(74,63,50,0.03)';
-      btn.style.color = canCraft ? '#5a8a6a' : '#8a7f72';
       btn.disabled = !canCraft;
+      if (canCraft) btn.classList.add('craft');
+      else btn.classList.add('locked');
       if (canCraft) {
         btn.addEventListener('click', e => {
           e.stopPropagation();

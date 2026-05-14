@@ -1,55 +1,85 @@
 # Safayi
 
-![AI Generated](https://img.shields.io/badge/AI--Generated-DeepSeek%20V4-blue)
-![Agentic Coding](https://img.shields.io/badge/Built%20with-Agentic%20Coding-purple)
+3D solar system survival sandbox with walkable planet surfaces.
 
-> ⚠️ **Disclaimer:** 70% of the code here was built with [DeepSeek V4](https://api-docs.deepseek.com) and "agentic coding". Trying out cutting edge developer workflows and the limits of what I can with AI-assistance. This does not neccesarily reflect the standards of my other projects.
+## Quick start
 
-![Progress](progress.png)
+```bash
+npm install
+npm run dev
+```
 
-
-
-I'm spending my leisure time to make a game on the interets I love, which are economics and geopolitics, I want to make a game where you mine minerals, refine, sell them, build bases, upgrade your bases go to war with ai bots, dominate supply chains and stuff.
+Open `http://localhost:5173` (or click a planet from `solar-system.html`).
 
 ## What's built
 
-- **Solar system** — 8 planets with procedural textures, animated Sun shader, orbit rings, planet labels, click-to-lock info panel
-- **Planet surface** — Flat terrain (600×600) with per-planet procedural ground texture, 40×40 build grid with hover highlight, humanoid player with walking animation, isometric & third-person camera (V to toggle), WASD/arrow movement, mouse aim
+- **Solar system** — 8 planets with procedural textures, animated Sun shader, orbit rings, click-to-lock info panel
+- **Planet surface** — Flat terrain (1800×1800) with per-planet ground texture, 40×40 build grid, humanoid player with walking animation, isometric & third-person camera (V to toggle), WASD/arrow movement, mouse aim
 - **Fixed timestep** game loop (60 Hz physics, decoupled from render)
-
-## What's next
-
-- [ ] Click-to-place building foundations
-- [ ] Building system (walls, machines, infrastructure)
-- [ ] Resource nodes (scatter ore, wood, water)
-- [ ] Harvesting & gathering mechanics
-- [ ] Inventory & HUD
-- [ ] Crafting & research
-- [ ] Survival mechanics (health, power, life support)
-- [ ] Base defence & warfare
-- [ ] Inter-planetary travel & logistics
-- [ ] Economy & trade
-- [ ] Territory control & faction maps
-- [ ] Dynamic seasons & weather
-- [ ] Fighter jet endgame
-- [ ] LLM-powered bot AI (blocked — no local LLM capable on 16GB M1, no budget for cloud)
+- **Resources** — Tree/stone/metal/crystal clusters with seeded placement, tiered tool gating, mining cooldown, particles, respawn timers
+- **Building system** — Wall, Turret, Solar Panel, Storage, Workshop, Gate, Beacon, Factory with upgrade tiers (3-4 tiers each), rotate/dismantle/repair
+- **Processing stations** — Workshop refines Wood→Plank, Stone→Refined Stone, Scrap→Recycled; Lab refines Metal→Refined Metal, Vibranium→Refined Vibranium, Electronics→Circuit
+- **Crafting** — Weapons (Stone Axe, Iron Sword, Vibranium Blade) and consumables (Medkit, Energy Drink, Stamina Boost, Ammo)
+- **Hostile wildlife** — Per-planet creatures with chase AI, contact damage, item drops, 30s despawn
+- **Combat** — Click-to-attack nearest creature, weapon damage, death/respawn with inventory loss
+- **Turret auto-targeting** — Turrets auto-fire at nearby creatures, consume ammo (crafted from Scrap), reload via block popup
+- **Inventory** — Modal dialog (E key) with item grid + tool crafting/equipping, hotbar with quantity labels, tool durability bars, tool indicator badge
+- **XP & leveling** — XP from mining/building/crafting/processing/combat, level cap 30, 3 skill points per level
+- **Skill trees** — Combat (7 perks) and Economy (7 perks) unlocked via T key
+- **Market Terminal** — Buy/sell resources with planet-specific prices, coin economy
+- **Player stats** — Health/Energy/Stamina bars with regen, energy drain on mining, stamina drain on movement
+- **Procedural ambient music** — Per-planet generative music (Web Audio API)
+- **Sound effects** — Per-material mining sounds, build/upgrade/dismantle/repair/process/error chimes
+- **Persistence** — Buildings, inventory, tools, stats saved per planet to localStorage
 
 ## Controls
 
 | Key | Action |
 |-----|--------|
 | WASD / Arrows | Move |
-| Mouse | Aim |
+| Mouse | Aim / click to interact |
+| E | Inventory |
+| C | Crafting |
+| T | Skill trees |
+| 1–3 | Equip tools |
 | V | Toggle camera mode |
 | Scroll | Zoom |
-| Click planet | Lock on / info |
-| Enter Planet | Navigate to surface |
-| ESC | Back to space |
+| Right-click | Close popup |
+| ESC | Close menu → Back to space |
 
-## Files
+## Build for production
 
-| File | Scene |
-|------|-------|
-| `solar-system.html` | Solar system view |
-| `surface.html` | Planet surface view |
-| `progress.png` | Current build screenshot |
+```bash
+npm run build
+```
+
+Output in `dist/`.
+
+## Project structure
+
+```
+index.html              ← Vite entry point
+solar-system.html       ← Solar system view (standalone)
+surface.html            ← Legacy monolithic file (kept for reference)
+src/
+  main.js               ← Scene init, context, game loop, input
+  style.css             ← All CSS
+  player.js             ← Player mesh, movement, stats
+  terrain.js            ← Terrain, lights, grid, resource nodes
+  buildings.js          ← Building types, foundations, mesh, popup, actions
+  utils/
+    noise.js            ← Seeded noise helpers
+    camera.js           ← Camera modes, follow, zoom
+  ui/
+    hud.js              ← HUD: planet name, coords, back button
+    hotbar.js           ← Hotbar: items, tools, durability
+    inventory.js        ← Inventory dialog, tool crafting
+    controls.js         ← Help toggle
+```
+
+## Tech
+
+- Three.js r128 (CDN, no npm)
+- Vite 5 (vanilla JS, no framework)
+- Web Audio API for sound/music
+- localStorage for persistence
