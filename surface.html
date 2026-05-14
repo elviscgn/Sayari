@@ -4,6 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Planet Surface</title>
+    <!--
+      SCREEN LAYOUT (z-order desc):
+        z100 loading overlay (fullscreen)
+         z50 toast-container      top:130px right:28px  — alert messages
+         z30 #block-popup         center                 — construction panel
+         z25 #hotbar              bottom:16px center     — items + tools
+         z24 #tool-indicator      bottom:80px center     — equipped tool badge
+         z15 #back-to-space       top:16px center        — "Back to Space" button
+         z11 #help-toggle         bottom:14px left:18px  — [?] Help
+         z10 #hud                 top:0 full-width       — HUD bar:
+               ├─ #title-block    top:14 left:18         — PLANET NAME / Surface
+               └─ #hud-right      top:14 right:18        — stacked:
+                    ├─ #status-block                     — Camera: ISOMETRIC
+                    └─ #player-stats                     — HP / EN / ST bars
+         z10 #info-bar            bottom:0 full-width    — bottom bar:
+               ├─ #controls-hint  bottom:14 left:18      — keybind hints
+               └─ #coords         bottom:14 right:18     — X: / Z: / Cell:
+    -->
     <style>
      * { margin: 0; padding: 0; box-sizing: border-box; }
      body { background: linear-gradient(135deg, #f0ebe3 0%, #e8e0d4 50%, #f2ede5 100%); overflow: hidden; font-family: 'SF Mono', 'SFMono-Regular', 'Fira Code', 'Consolas', 'Courier New', monospace; color: #4a3f32; }
@@ -20,28 +38,29 @@
       /* ── TOP BAR PILLS ── */
       #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; z-index: 10; }
       #hud-top { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 18px; }
-      #hud-mid { display: flex; justify-content: center; padding: 6px 18px 0; margin-top: 40px; }
+      #hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
      .hud-pill {
        background: rgba(240, 235, 227, 0.75); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
        border: 1px solid rgba(74, 63, 50, 0.1); border-radius: 5px; padding: 6px 14px;
        min-width: 100px;
      }
-     #title-block h1 { font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: #5a4f42; font-weight: 700; }
-     #title-block .sub { font-size: 10px; letter-spacing: 0.15em; color: #9a8f82; margin-top: 3px; font-weight: 600; }
-      #status-block .mode-label { font-size: 9px; letter-spacing: 0.25em; color: #b8956a; text-transform: uppercase; font-weight: 600; }
-      #status-block .mode-value { font-size: 13px; letter-spacing: 0.1em; color: #8a6a4a; margin-top: 1px; font-weight: 700; }
+      #title-block h1 { font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: #5a4f42; font-weight: 700; }
+      #title-block .sub { font-size: 10px; letter-spacing: 0.15em; color: #9a8f82; margin-top: 3px; font-weight: 600; }
+      #status-block .mode-label { font-size: 8px; letter-spacing: 0.25em; color: #9a8f82; text-transform: uppercase; font-weight: 600; }
+      #status-block .mode-value { font-size: 12px; letter-spacing: 0.1em; color: #8a6a4a; margin-top: 1px; font-weight: 700; }
 
       /* ── PLAYER STATS (Health, Energy, Stamina) ── */
-      #player-stats { min-width: 160px; }
-      .stat-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+      #player-stats { min-width: 180px; background: rgba(240, 235, 227, 0.88); }
+      .stat-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
       .stat-row:last-child { margin-bottom: 0; }
-      .stat-label { font-size: 8px; letter-spacing: 0.2em; color: #6a5f52; font-weight: 600; width: 14px; text-align: right; }
-      .stat-track { flex: 1; height: 6px; background: rgba(74,63,50,0.08); border-radius: 3px; overflow: hidden; }
+      .stat-label { font-size: 9px; letter-spacing: 0.15em; color: #5a4f42; font-weight: 700; width: 22px; text-align: right; cursor: help; }
+      .stat-label:hover::after { content: attr(data-full); position: absolute; background: rgba(240,235,227,0.95); padding: 2px 8px; border-radius: 3px; font-size: 9px; font-weight: 600; letter-spacing: 0.1em; white-space: nowrap; border: 1px solid rgba(74,63,50,0.1); margin-left: 4px; }
+      .stat-track { flex: 1; height: 7px; background: rgba(74,63,50,0.08); border-radius: 3px; overflow: hidden; }
       .stat-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
-      .stat-fill.health-fill { background: #5a8a6a; }
-      .stat-fill.energy-fill { background: #c89a3a; }
-      .stat-fill.stamina-fill { background: #c87a3a; }
-      .stat-num { font-size: 9px; font-weight: 700; color: #4a3f32; width: 26px; text-align: left; }
+      .stat-fill.health-fill { background: #3ccc5a; }
+      .stat-fill.energy-fill { background: #f0d040; }
+      .stat-fill.stamina-fill { background: #e84242; }
+      .stat-num { font-size: 11px; font-weight: 800; color: #3a2f22; width: 30px; text-align: left; }
 
       /* ── BACK TO SPACE (reduced weight) ── */
      #back-to-space {
@@ -71,28 +90,30 @@
      #controls-hint.collapsed { opacity: 0; transform: translateY(10px); pointer-events: none; }
      #controls-hint .hint-col { display: inline-block; vertical-align: top; }
      #controls-hint .hint-col + .hint-col { margin-left: 20px; }
-     #help-toggle {
-       position: fixed; bottom: 14px; left: 18px; z-index: 11;
-       width: 26px; height: 26px; border-radius: 50%;
-       background: rgba(240, 235, 227, 0.7); backdrop-filter: blur(6px);
-       border: 1px solid rgba(74,63,50,0.1);
-       color: #8a7f72; font-family: inherit; font-size: 12px; font-weight: 700;
-       cursor: pointer; pointer-events: auto; transition: all 0.2s; line-height: 24px; text-align: center;
-     }
-     #help-toggle:hover { background: rgba(220,210,195,0.9); color: #4a3f32; }
+      #help-toggle {
+        position: fixed; bottom: 14px; left: 18px; z-index: 11;
+        padding: 6px 14px; border-radius: 5px;
+        background: rgba(240, 235, 227, 0.75); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(74,63,50,0.12);
+        color: #8a7f72; font-family: inherit; font-size: 11px; font-weight: 700;
+        cursor: pointer; pointer-events: auto; transition: all 0.2s;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03); letter-spacing: 0.1em; text-transform: uppercase;
+        min-width: 80px;
+      }
+      #help-toggle:hover { background: rgba(220,210,195,0.9); color: #4a3f32; border-color: rgba(74,63,50,0.2); }
 
-     #coords {
-       font-size: 10px; letter-spacing: 0.1em; color: #8a7f72; text-align: right;
-       line-height: 1.6; font-weight: 600;
-       background: rgba(240, 235, 227, 0.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-       padding: 6px 10px; border-radius: 4px; border: 1px solid rgba(74,63,50,0.06);
-     }
+      #coords {
+        font-size: 11px; letter-spacing: 0.1em; color: #8a7f72; text-align: right;
+        line-height: 1.7; font-weight: 600;
+        background: rgba(240, 235, 227, 0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        padding: 6px 12px; border-radius: 5px; border: 1px solid rgba(74,63,50,0.1);
+      }
 
      #loading { position: fixed; inset: 0; background: #f0ebe3; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.8s ease; }
      #loading.hidden { opacity: 0; pointer-events: none; }
 
      /* ── TOASTS ── */
-     #toast-container { position: fixed; top: 80px; right: 28px; z-index: 50; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+      #toast-container { position: fixed; top: 130px; right: 28px; z-index: 50; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
      .toast {
        padding: 8px 16px; background: rgba(240, 235, 227, 0.94); border: 1px solid rgba(74, 63, 50, 0.12);
        backdrop-filter: blur(12px); border-radius: 4px;
@@ -101,107 +122,118 @@
      }
      .toast.out { animation: toastOut 0.2s ease forwards; }
 
-     /* ── HOTBAR (warm tones) ── */
-     #hotbar {
-       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-       z-index: 25; display: flex; gap: 3px;
-       background: rgba(200, 190, 175, 0.35);
-       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-       padding: 4px 5px; border-radius: 6px; border: 1px solid rgba(74,63,50,0.08);
-     }
-     .hb-btn {
-       width: 42px; height: 42px;
-       background: rgba(240, 235, 227, 0.3);
-       border: 2px solid rgba(74, 63, 50, 0.06);
-       color: #5a4f42; cursor: pointer;
-       font-family: inherit; font-size: 9px; letter-spacing: 0.1em; font-weight: 600;
-       text-transform: uppercase; text-align: center;
-       transition: all 0.12s; border-radius: 4px;
-       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: relative;
-     }
-     .hb-btn:hover { background: rgba(240, 235, 227, 0.5); border-color: rgba(74, 63, 50, 0.15); }
-     .hb-btn.active {
-       border-color: #c89a3a; background: rgba(200, 154, 58, 0.15); color: #7a5f22;
-       box-shadow: 0 0 8px rgba(200, 154, 58, 0.2);
-     }
-     .hb-btn .key { font-size: 7px; color: rgba(74, 63, 50, 0.3); font-weight: 700; position: absolute; top: 2px; left: 4px; }
-     .hb-btn .swatch { width: 16px; height: 16px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.1); }
-     .hb-btn .hb-label { font-size: 9px; letter-spacing: 0; color: #3a2f22; line-height: 1; font-weight: 700; text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
+      /* ── HOTBAR (warm parchment) ── */
+      #hotbar {
+        position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+        z-index: 25; display: flex; gap: 3px;
+        background: rgba(220, 210, 195, 0.4);
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        padding: 4px 5px; border-radius: 6px; border: 1px solid rgba(74,63,50,0.08);
+      }
+      .hb-btn {
+        width: 46px; height: 48px;
+        background: rgba(240, 235, 227, 0.3);
+        border: 2px solid rgba(74, 63, 50, 0.06);
+        color: #5a4f42; cursor: pointer;
+        font-family: inherit; font-size: 9px; letter-spacing: 0.1em; font-weight: 600;
+        text-transform: uppercase; text-align: center;
+        transition: all 0.12s; border-radius: 4px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; position: relative;
+      }
+      .hb-btn:hover { background: rgba(240, 235, 227, 0.5); border-color: rgba(74, 63, 50, 0.15); }
+      .hb-btn.active {
+        border-color: #c89a3a; background: rgba(200, 154, 58, 0.15); color: #7a5f22;
+        box-shadow: 0 0 8px rgba(200, 154, 58, 0.2);
+      }
+      .hb-btn .key { font-size: 7px; color: rgba(74, 63, 50, 0.3); font-weight: 700; position: absolute; top: 2px; left: 4px; }
+      .hb-btn .swatch { width: 22px; height: 22px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1); object-fit: contain; image-rendering: pixelated; }
+      .hb-btn .hb-label { font-size: 9px; letter-spacing: 0; color: #3a2f22; line-height: 1; font-weight: 700; text-shadow: 0 1px 0 rgba(255,255,255,0.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38px; }
+      .hb-slot { width: 46px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; position: relative; border: 2px solid rgba(74,63,50,0.06); background: rgba(240,235,227,0.3); }
+      .hb-slot.equipped { border-color: #c89a3a; background: rgba(200, 154, 58, 0.15); box-shadow: 0 0 8px rgba(200, 154, 58, 0.2); }
+      .hb-slot.owned { opacity: 1; } .hb-slot:not(.owned) { opacity: 0.35; }
+      .hb-slot .dur-bar { position: absolute; bottom: 3px; left: 4px; right: 4px; height: 3px; background: rgba(74,63,50,0.08); border-radius: 2px; overflow: hidden; }
+      .hb-slot .dur-fill { height: 100%; border-radius: 2px; background: #5a8a6a; transition: width 0.2s; }
 
-     /* ── TOOL INDICATOR (pill badge) ── */
-     #tool-indicator {
-       position: fixed; bottom: 66px; left: 50%; transform: translateX(-50%); z-index: 24;
-       display: none; align-items: center; gap: 5px;
-       background: rgba(240, 235, 227, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-       padding: 4px 12px; border-radius: 10px; font-size: 9px; letter-spacing: 0.12em;
-       color: #4a3f32; font-weight: 600; font-family: inherit; text-transform: uppercase;
-       border: 1px solid rgba(74,63,50,0.08); box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-     }
+      /* ── TOOL INDICATOR (pill badge) ── */
+      #tool-indicator {
+        position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 24;
+        display: none; align-items: center; gap: 6px;
+        background: rgba(240, 235, 227, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        padding: 3px 14px; border-radius: 12px; font-size: 10px; letter-spacing: 0.15em;
+        color: #4a3f32; font-weight: 700; font-family: inherit; text-transform: uppercase;
+        border: 1px solid rgba(74,63,50,0.1); box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        white-space: nowrap;
+      }
 
-     /* ── BLOCK POPUP ── */
-     #block-popup {
-       position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(10px);
-       z-index: 30; display: none;
-       background: rgba(240, 235, 227, 0.94);
-       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-       border: 1px solid rgba(74, 63, 50, 0.12);
-       padding: 18px 24px 16px;
-       font-family: inherit;
-       min-width: 300px;
-       border-radius: 6px;
-       box-shadow: 0 8px 32px rgba(0,0,0,0.06);
-     }
-     #block-popup.open { display: block; animation: fadeSlideUp 0.2s ease forwards; }
-     .bp-title { font-size: 12px; letter-spacing: 0.35em; color: #5a4f42; text-transform: uppercase; margin-bottom: 8px; text-align: center; font-weight: 700; }
-     .bp-sub { font-size: 10px; letter-spacing: 0.2em; color: #8a7f72; text-align: center; margin-bottom: 12px; font-weight: 600; }
-     .bp-hp-wrap { margin-bottom: 10px; }
-     .bp-hp-bar { height: 4px; background: rgba(74, 63, 50, 0.08); border-radius: 2px; overflow: hidden; }
-     .bp-hp-fill { height: 100%; width: 100%; background: #5a8a6a; transition: width 0.3s; border-radius: 2px; }
-     .bp-hp-label { font-size: 10px; letter-spacing: 0.2em; color: #6a5f52; text-align: center; margin-top: 4px; font-weight: 600; }
-     .bp-section { border-top: 1px solid rgba(74,63,50,0.08); padding-top: 10px; margin-top: 10px; }
-     .bp-section-label { font-size: 8px; letter-spacing: 0.3em; color: #8a7f72; text-transform: uppercase; margin-bottom: 8px; text-align: center; font-weight: 600; }
-     .bp-grid { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
-     .bp-btn {
-       padding: 7px 12px; background: rgba(74, 63, 50, 0.04); border: 1px solid rgba(74, 63, 50, 0.1);
-       color: #6a5f52; cursor: pointer;
-       font-family: inherit; font-size: 9px; letter-spacing: 0.15em; font-weight: 600;
-       text-transform: uppercase; transition: all 0.12s; border-radius: 4px;
-       display: flex; align-items: center; gap: 6px;
-     }
-     .bp-btn:hover:not(:disabled) { background: rgba(74, 63, 50, 0.08); color: #3a2f22; border-color: rgba(74, 63, 50, 0.18); }
-     .bp-btn:active:not(:disabled) { transform: scale(0.97); }
-     .bp-btn:disabled { opacity: 0.3; cursor: default; color: #8a7f72; }
-     .bp-btn .swatch { display: inline-block; width: 7px; height: 7px; border-radius: 1px; flex-shrink: 0; }
+      /* ── BLOCK POPUP (Popover API) ── */
+      #block-popup {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        z-index: 30; border: 0;
+        background: rgba(240, 235, 227, 0.94);
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(74, 63, 50, 0.12);
+        padding: 18px 20px 16px;
+        font-family: inherit;
+        min-width: 260px;
+        border-radius: 6px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+      }
+      #block-popup::backdrop { background: rgba(30, 26, 22, 0.4); }
+      .bp-scroll { overflow-y: auto; max-height: 70vh; }
+      #block-popup:popover-open { animation: fadeSlideUp 0.15s ease forwards; }
+      @starting-style { #block-popup:popover-open { opacity: 0; transform: translateY(8px); } }
 
-     /* ── INVENTORY OVERLAY ── */
-     #inventory-overlay {
-       position: fixed; inset: 0; z-index: 100;
-       display: none; align-items: center; justify-content: center;
-       background: rgba(30, 26, 22, 0.6);
-       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-       font-family: inherit;
-     }
-     #inventory-overlay.open { display: flex; animation: fadeSlideUp 0.15s ease forwards; }
-     #inventory-panel {
-       background: rgba(240, 235, 227, 0.96);
-       border: 1px solid rgba(74, 63, 50, 0.12);
-       border-radius: 8px; padding: 24px 28px 20px;
-       min-width: 440px; max-width: 520px;
-       max-height: 80vh; overflow-y: auto;
-       box-shadow: 0 12px 48px rgba(0,0,0,0.12);
-       position: relative;
-     }
-     #inventory-panel::-webkit-scrollbar { width: 4px; }
-     #inventory-panel::-webkit-scrollbar-thumb { background: rgba(74,63,50,0.15); border-radius: 2px; }
-     #inv-close {
-       position: absolute; top: 10px; right: 12px;
-       width: 24px; height: 24px; border-radius: 4px;
-       background: none; border: 1px solid rgba(74,63,50,0.08);
-       color: #8a7f72; font-family: inherit; font-size: 13px; font-weight: 700;
-       cursor: pointer; transition: all 0.15s; line-height: 22px; text-align: center;
-       pointer-events: auto;
-     }
-     #inv-close:hover { background: rgba(74,63,50,0.06); color: #4a3f32; border-color: rgba(74,63,50,0.15); }
+      .bp-title { font-size: 14px; letter-spacing: 0.35em; color: #4a3f32; text-transform: uppercase; margin-bottom: 2px; text-align: left; font-weight: 800; }
+      .bp-coords { font-size: 9px; letter-spacing: 0.15em; color: #9a8f82; margin-bottom: 12px; text-align: left; font-weight: 600; }
+      .bp-hp-wrap { margin-bottom: 10px; }
+      .bp-hp-bar { height: 4px; background: rgba(74, 63, 50, 0.08); border-radius: 2px; overflow: hidden; }
+      .bp-hp-fill { height: 100%; width: 100%; background: #5a8a6a; transition: width 0.3s; border-radius: 2px; }
+      .bp-hp-label { font-size: 10px; letter-spacing: 0.2em; color: #6a5f52; text-align: center; margin-top: 4px; font-weight: 600; }
+      .bp-section { border-top: 1px solid rgba(74,63,50,0.08); padding-top: 10px; margin-top: 10px; }
+      .bp-section-label { font-size: 9px; letter-spacing: 0.3em; color: #9a8f82; text-transform: uppercase; margin-bottom: 8px; text-align: left; font-weight: 600; }
+      .bp-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+      .bp-grid .bp-btn { flex: 1 1 0px; min-width: 95px; white-space: nowrap; }
+      .bp-btn {
+        padding: 10px 8px; background: rgba(74, 63, 50, 0.04); border: 1px solid rgba(74, 63, 50, 0.1);
+        color: #6a5f52; cursor: pointer;
+        font-family: inherit; font-size: 10px; letter-spacing: 0.12em; font-weight: 600;
+        text-transform: uppercase; transition: all 0.12s; border-radius: 4px;
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        white-space: nowrap;
+      }
+      .bp-btn:hover:not(:disabled) { background: rgba(74, 63, 50, 0.08); color: #3a2f22; border-color: rgba(74, 63, 50, 0.18); }
+      .bp-btn.selected { background: rgba(200, 154, 58, 0.12); border-color: #c89a3a; color: #5a3f12; }
+      .bp-btn:active:not(:disabled) { transform: scale(0.97); }
+      .bp-btn:disabled { opacity: 0.3; cursor: default; color: #8a7f72; }
+      .bp-btn .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+      /* ── INVENTORY DIALOG ── */
+      #inventory-overlay {
+        font-family: inherit; border: 0; padding: 0; background: transparent;
+        max-width: 520px; width: 90vw;
+      }
+      #inventory-overlay::backdrop {
+        background: rgba(30, 26, 22, 0.6);
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      }
+      #inventory-panel {
+        background: rgba(240, 235, 227, 0.96);
+        border: 1px solid rgba(74, 63, 50, 0.12);
+        border-radius: 8px; padding: 24px 28px 20px;
+        max-height: 80vh; overflow-y: auto;
+        box-shadow: 0 12px 48px rgba(0,0,0,0.12);
+        position: relative;
+      }
+      #inventory-panel::-webkit-scrollbar { width: 4px; }
+      #inventory-panel::-webkit-scrollbar-thumb { background: rgba(74,63,50,0.15); border-radius: 2px; }
+      #inv-close {
+        position: absolute; top: 10px; right: 12px;
+        width: 24px; height: 24px; border-radius: 4px;
+        background: none; border: 1px solid rgba(74,63,50,0.08);
+        color: #8a7f72; font-family: inherit; font-size: 13px; font-weight: 700;
+        cursor: pointer; transition: all 0.15s; line-height: 22px; text-align: center;
+      }
+      #inv-close:hover { background: rgba(74,63,50,0.06); color: #4a3f32; border-color: rgba(74,63,50,0.15); }
      #inv-title { font-size: 12px; letter-spacing: 0.35em; color: #4a3f32; text-transform: uppercase; text-align: center; font-weight: 700; margin-bottom: 16px; }
      #inv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
      .inv-card {
@@ -213,7 +245,7 @@
      }
      .inv-card:hover { background: rgba(74, 63, 50, 0.07); border-color: rgba(74, 63, 50, 0.16); transform: translateY(-1px); }
      .inv-card:active { transform: scale(0.97); }
-     .inv-swatch { width: 22px; height: 22px; border-radius: 3px; flex-shrink: 0; }
+      .inv-swatch { width: 22px; height: 22px; border-radius: 3px; flex-shrink: 0; object-fit: contain; }
      .tool-card {
        display: flex; align-items: center; gap: 10px;
        padding: 10px 14px; min-height: 48px; cursor: pointer;
@@ -249,27 +281,27 @@
         <h1 id="planet-name-display">Planet</h1>
         <div class="sub" id="planet-type-display">Surface</div>
       </div>
-      <div class="hud-pill" id="status-block">
-        <div class="mode-label">Camera</div>
-        <div class="mode-value" id="mode-display">ISOMETRIC</div>
-      </div>
-    </div>
-    <div id="hud-mid">
-      <div class="hud-pill" id="player-stats">
-        <div class="stat-row">
-          <span class="stat-label">HP</span>
-          <div class="stat-track"><div class="stat-fill health-fill" id="health-fill"></div></div>
-          <span class="stat-num" id="health-num">100</span>
+      <div id="hud-right">
+        <div class="hud-pill" id="status-block">
+          <div class="mode-label">Camera</div>
+          <div class="mode-value" id="mode-display">ISOMETRIC</div>
         </div>
-        <div class="stat-row">
-          <span class="stat-label">EN</span>
-          <div class="stat-track"><div class="stat-fill energy-fill" id="energy-fill"></div></div>
-          <span class="stat-num" id="energy-num">100</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">ST</span>
-          <div class="stat-track"><div class="stat-fill stamina-fill" id="stamina-fill"></div></div>
-          <span class="stat-num" id="stamina-num">100</span>
+        <div class="hud-pill" id="player-stats">
+          <div class="stat-row">
+            <span class="stat-label" data-full="Health">HP</span>
+            <div class="stat-track"><div class="stat-fill health-fill" id="health-fill"></div></div>
+            <span class="stat-num" id="health-num">100</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-full="Energy">EN</span>
+            <div class="stat-track"><div class="stat-fill energy-fill" id="energy-fill"></div></div>
+            <span class="stat-num" id="energy-num">100</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-full="Stamina">ST</span>
+            <div class="stat-track"><div class="stat-fill stamina-fill" id="stamina-fill"></div></div>
+            <span class="stat-num" id="stamina-num">100</span>
+          </div>
         </div>
       </div>
     </div>
@@ -280,33 +312,35 @@
   <div id="tool-indicator"></div>
   <div id="hotbar"></div>
 
-  <div id="block-popup">
-    <div class="bp-title" id="bp-title"></div>
-    <div class="bp-sub" id="bp-sub"></div>
-    <div class="bp-hp-wrap" id="bp-hp-wrap">
-      <div class="bp-hp-bar"><div class="bp-hp-fill" id="bp-hp-fill"></div></div>
-      <div class="bp-hp-label" id="bp-hp-label">HP 100/100</div>
-    </div>
-    <div class="bp-section" id="bp-build-section">
-      <div class="bp-section-label">Build</div>
-      <div class="bp-grid" id="bp-build-grid"></div>
-    </div>
-    <div class="bp-section" id="bp-action-section">
-      <div class="bp-section-label">Actions</div>
-      <div class="bp-grid" id="bp-action-grid"></div>
+  <div id="block-popup" popover="auto">
+    <div class="bp-scroll">
+      <div class="bp-title" id="bp-title">New Construction</div>
+      <div class="bp-coords" id="bp-coords"></div>
+      <div class="bp-hp-wrap" id="bp-hp-wrap">
+        <div class="bp-hp-bar"><div class="bp-hp-fill" id="bp-hp-fill"></div></div>
+        <div class="bp-hp-label" id="bp-hp-label">HP 100/100</div>
+      </div>
+      <div class="bp-section" id="bp-build-section">
+        <div class="bp-section-label">Select Type</div>
+        <div class="bp-grid" id="bp-build-grid"></div>
+      </div>
+      <div class="bp-section" id="bp-action-section">
+        <div class="bp-section-label">Actions</div>
+        <div class="bp-grid" id="bp-action-grid"></div>
+      </div>
     </div>
   </div>
 
-  <div id="inventory-overlay">
+  <dialog id="inventory-overlay">
     <div id="inventory-panel">
       <button id="inv-close">✕</button>
       <div id="inv-title">Inventory</div>
       <div id="inv-grid"></div>
       <div id="inv-hint">E / C · Close &nbsp;&nbsp; Click · Select</div>
     </div>
-  </div>
+  </dialog>
 
-  <button id="help-toggle">?</button>
+  <button id="help-toggle">[?] Help</button>
 
   <div id="info-bar">
     <div id="controls-hint">
@@ -318,15 +352,15 @@
       </span>
       <span class="hint-col">
         Click building · Actions<br>
-        <span id="hint-keys">1-6</span> · Items<br>
+        <span id="hint-keys">1-6</span> · Tools<br>
         V · Camera<br>
         ESC · Back
       </span>
     </div>
     <div id="coords">
-      <span id="pos-x">X: 0</span><br>
-      <span id="pos-z">Z: 0</span><br>
-      <span id="pos-cell">Cell: 0, 0</span>
+      <div id="pos-x">X: 0</div>
+      <div id="pos-z">Z: 0</div>
+      <div id="pos-cell">Cell: 0, 0</div>
     </div>
   </div>
 
@@ -538,11 +572,37 @@
     // ── FOUNDATIONS ──────────────────────────────
     const foundations = [];
     const foundationTargets = [];
+    function buildFoundationTexture() {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#aab8c4';
+      ctx.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 12; i++) {
+        for (let j = 0; j < 12; j++) {
+          ctx.strokeStyle = 'rgba(80,90,100,' + (0.2 + Math.random() * 0.15) + ')';
+          ctx.lineWidth = 1.2;
+          ctx.strokeRect(i * 10.6, j * 10.6, 10.6, 10.6);
+        }
+      }
+      for (let k = 0; k < 80; k++) {
+        ctx.fillStyle = 'rgba(0,0,0,' + (0.03 + Math.random() * 0.05) + ')';
+        ctx.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 3, 1);
+      }
+      // Darker border gridlines for cell-based look
+      ctx.strokeStyle = 'rgba(60,70,80,0.25)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, 128, 128);
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(6, 6);
+      return tex;
+    }
     const foundationMat = new THREE.MeshLambertMaterial({
-      color: '#88ccff', transparent: true, opacity: 0.35, depthWrite: false,
+      map: buildFoundationTexture(), transparent: true, opacity: 0.85, depthWrite: false,
     });
     const foundationEdgeMat = new THREE.LineBasicMaterial({
-      color: '#88ccff', transparent: true, opacity: 0.6, depthWrite: false,
+      color: '#667788', transparent: true, opacity: 0.7, depthWrite: false,
     });
 
     function placeFoundation(cx, cz) {
@@ -694,10 +754,10 @@
 
     // ── RESOURCE NODES ───────────────────────────
     const RESOURCE_TYPES = {
-      tree:    { name: 'Tree',      color: 0x2d8a4e, drop: { wood: 3 },                hp: 30, respawn: 12000, toolTier: 0 },
-      stone:   { name: 'Stone',     color: 0x7a7a7a, drop: { stone: 2, scrap: 1 },     hp: 40, respawn: 18000, toolTier: 1 },
-      metal:   { name: 'Metal Vein',color: 0x4488cc, drop: { metal: 2 },               hp: 60, respawn: 25000, toolTier: 2 },
-      crystal: { name: 'Crystal',   color: 0x8844cc, drop: { vibranium: 1, electronics: 1 }, hp: 40, respawn: 30000, toolTier: 3 },
+      tree:    { name: 'Tree',      color: 0x3aaa55, drop: { wood: 3 },                hp: 30, respawn: 30000, toolTier: 0 },
+      stone:   { name: 'Stone',     color: 0x8a8a8a, drop: { stone: 2, scrap: 1 },     hp: 40, respawn: 18000, toolTier: 1 },
+      metal:   { name: 'Metal Vein',color: 0xcc8844, drop: { metal: 2 },               hp: 60, respawn: 25000, toolTier: 2 },
+      crystal: { name: 'Crystal',   color: 0xaa66dd, drop: { vibranium: 1, electronics: 1 }, hp: 40, respawn: 30000, toolTier: 3 },
     };
 
     const TOOLS = {
@@ -710,102 +770,126 @@
     let playerTools = {}; // { wood_pickaxe: 85, stone_pickaxe: 200, ... }
 
     let resourceNodes = [];
-    let resourceTargets = [];
+    const cellResources = {}; // "cx,cz" → { typeKey, group, hp, maxHp, respawnTimer }
     const NUM_RESOURCES = 120;
     let lastMineTime = 0;
     const MINE_COOLDOWN = 300;
 
-    function spawnResourceNode(typeKey, x, z) {
+    function spawnResourceNode(typeKey, cx, cz) {
       const def = RESOURCE_TYPES[typeKey];
       const group = new THREE.Group();
-      group.position.set(x, 0, z);
-      const mat = new THREE.MeshLambertMaterial({ color: def.color });
+      const center = getCellCenter(cx, cz);
+      const wx = center.x, wz = center.z;
+      group.position.set(wx, 0, wz);
+      cellResources[`${cx},${cz}`] = { typeKey, group, hp: def.hp, maxHp: def.hp, respawnTimer: null };
 
-      // Colored floor marker so resources are visible from a distance
+      const sR = 1.8;
+      // Shadow ellipse beneath node
+      const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.15, depthWrite: false, side: THREE.DoubleSide });
+      const shadow = new THREE.Mesh(new THREE.CircleGeometry(3.0 * sR, 12), shadowMat);
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.position.y = 0.01;
+      shadow.scale.x = 1.4;
+      shadow.userData.noHit = true;
+      group.add(shadow);
+
+      // Floor marker with per-type color (more visible)
       const floorMat = new THREE.MeshBasicMaterial({
-        color: def.color, transparent: true, opacity: 0.18, depthWrite: false,
+        color: def.color, transparent: true, opacity: 0.35, depthWrite: false,
         side: THREE.DoubleSide,
       });
-      const floor = new THREE.Mesh(new THREE.CircleGeometry(1.6, 16), floorMat);
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(2.0 * sR, 12), floorMat);
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = 0.03;
+      floor.userData.noHit = true;
       group.add(floor);
-      const edgeMat = new THREE.LineBasicMaterial({ color: def.color, transparent: true, opacity: 0.25 });
-      const edgePts = [];
-      for (let i = 0; i <= 24; i++) {
-        const a = (i / 24) * Math.PI * 2;
-        edgePts.push(new THREE.Vector3(Math.cos(a) * 1.6, 0, Math.sin(a) * 1.6));
-      }
-      const edgeRing = new THREE.Line(new THREE.BufferGeometry().setFromPoints(edgePts), edgeMat);
-      edgeRing.rotation.x = -Math.PI / 2;
-      edgeRing.position.y = 0.04;
-      group.add(edgeRing);
 
       if (typeKey === 'tree') {
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 1.6, 6), new THREE.MeshLambertMaterial({ color: 0x5a3a1a }));
-        trunk.position.y = 0.8;
-        trunk.castShadow = true;
-        group.add(trunk);
-        const crown = new THREE.Mesh(new THREE.ConeGeometry(2.4, 3.2, 7), mat);
-        crown.position.y = 2.8;
-        crown.castShadow = true;
-        group.add(crown);
-        const crown2 = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2.0, 7), mat);
-        crown2.position.set(1.0, 4.0, 0.8);
-        crown2.castShadow = true;
-        group.add(crown2);
-        const crown3 = new THREE.Mesh(new THREE.ConeGeometry(1.4, 1.8, 7), mat);
-        crown3.position.set(-0.8, 3.8, -0.6);
-        crown3.castShadow = true;
-        group.add(crown3);
+        const T = 9;
+        const woodMat = new THREE.MeshLambertMaterial({ color: 0x6a4a2a, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+        const offsets = [[0,0], [22,8], [-18,12]];
+        for (let ti = 0; ti < offsets.length; ti++) {
+          const [ox, oz] = offsets[ti];
+          const yOff = ti * 0.15;
+          const leafMat = new THREE.MeshLambertMaterial({
+            color: 0x3aaa55, polygonOffset: true,
+            polygonOffsetFactor: ti - 1, polygonOffsetUnits: ti - 1,
+          });
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25 * T, 0.4 * T, 2.0 * T, 6), woodMat);
+          trunk.position.set(ox, 1.0 * T + yOff, oz);
+          trunk.castShadow = true;
+          trunk.userData.treeIdx = ti;
+          group.add(trunk);
+          const crown = new THREE.Mesh(new THREE.ConeGeometry(2.8 * T, 3.5 * T, 7), leafMat);
+          crown.position.set(ox, 3.0 * T + yOff, oz);
+          crown.castShadow = true;
+          crown.userData.treeIdx = ti;
+          group.add(crown);
+          const c2 = new THREE.Mesh(new THREE.ConeGeometry(2.0 * T, 2.5 * T, 7), leafMat);
+          c2.position.set(ox + 1.5 * T, 4.2 * T + yOff, oz + 0.6 * T);
+          c2.castShadow = true;
+          c2.userData.treeIdx = ti;
+          group.add(c2);
+          const c3 = new THREE.Mesh(new THREE.ConeGeometry(1.8 * T, 2.2 * T, 7), leafMat);
+          c3.position.set(ox - 1.3 * T, 4.0 * T + yOff, oz - 0.5 * T);
+          c3.castShadow = true;
+          c3.userData.treeIdx = ti;
+          group.add(c3);
+        }
       } else if (typeKey === 'stone') {
-        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.4), mat);
-        rock.position.y = 0.7;
-        rock.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-        rock.castShadow = true;
-        group.add(rock);
-        const rock2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8), mat);
-        rock2.position.set(1.0, 0.4, 0.6);
-        rock2.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-        rock2.castShadow = true;
-        group.add(rock2);
-        const rock3 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.6), mat);
-        rock3.position.set(-0.6, 0.3, 1.0);
-        rock3.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-        rock3.castShadow = true;
-        group.add(rock3);
+        const RS = 7;
+        const stoneGroup = [
+          [0, 1.5, 0, 0.8],
+          [12, 1.0, 8, 0.5],
+          [-10, 0.7, -6, 0.35],
+        ];
+        stoneGroup.forEach(([rx, ry, rz, sf], i) => {
+          const rMat = new THREE.MeshLambertMaterial({
+            color: 0x8a8a8a, polygonOffset: true,
+            polygonOffsetFactor: -i * 2, polygonOffsetUnits: -i * 2,
+          });
+          const r = sf * RS;
+          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(r), rMat);
+          rock.position.set(rx, ry, rz);
+          rock.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+          rock.castShadow = true;
+          rock.renderOrder = i;
+          group.add(rock);
+        });
       } else if (typeKey === 'metal') {
-        const vein = new THREE.Mesh(new THREE.OctahedronGeometry(1.2), mat);
-        vein.position.y = 0.6;
+        const oreMat = new THREE.MeshLambertMaterial({ color: 0xcc8844 });
+        const vein = new THREE.Mesh(new THREE.OctahedronGeometry(0.6 * sR), oreMat);
+        vein.position.y = 0.3 * sR;
         vein.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
         vein.castShadow = true;
         group.add(vein);
-        const vein2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.8), mat);
-        vein2.position.set(0.8, 0.3, -0.4);
+        const vein2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.4 * sR), oreMat);
+        vein2.position.set(0.4 * sR, 0.15 * sR, -0.2 * sR);
         vein2.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
         vein2.castShadow = true;
         group.add(vein2);
-        const vein3 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 1.0), mat);
-        vein3.position.set(0, 0.15, 0);
-        vein3.castShadow = true;
-        group.add(vein3);
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(0.8 * sR, 0.15 * sR, 0.5 * sR), oreMat);
+        slab.position.set(0, 0.08 * sR, 0);
+        slab.castShadow = true;
+        group.add(slab);
       } else if (typeKey === 'crystal') {
-        const glowMat = new THREE.MeshLambertMaterial({ color: 0x8844cc, emissive: 0x6633aa, emissiveIntensity: 0.3 });
-        const crys = new THREE.Mesh(new THREE.OctahedronGeometry(1.0), glowMat);
-        crys.position.y = 0.7;
+        const glowMat = new THREE.MeshLambertMaterial({ color: 0xaa66dd, emissive: 0x8844cc, emissiveIntensity: 0.4 });
+        const crys = new THREE.Mesh(new THREE.OctahedronGeometry(0.5 * sR), glowMat);
+        crys.position.y = 0.35 * sR;
         crys.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
         crys.castShadow = true;
         group.add(crys);
-        const crys2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.6), glowMat);
-        crys2.position.set(-0.6, 0.4, 0.8);
+        const crys2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.3 * sR), glowMat);
+        crys2.position.set(-0.3 * sR, 0.2 * sR, 0.4 * sR);
         crys2.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
         crys2.castShadow = true;
         group.add(crys2);
-        const glowDot = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), new THREE.MeshBasicMaterial({ color: 0xcc88ff }));
-        glowDot.position.set(0, 1.4, 0);
+        const glowDot = new THREE.Mesh(new THREE.SphereGeometry(0.08 * sR, 6, 6), new THREE.MeshBasicMaterial({ color: 0xdd99ff }));
+        glowDot.position.set(0, 0.7 * sR, 0);
         group.add(glowDot);
       }
 
+      group.userData.cellKey = `${cx},${cz}`;
       group.userData.isResource = true;
       group.userData.typeKey = typeKey;
       group.userData.hp = def.hp;
@@ -813,11 +897,6 @@
       group.userData.respawnTimer = null;
 
       scene.add(group);
-      group.children.forEach(c => {
-        c.userData.isResource = true;
-        c.userData.resourceGroup = group;
-        resourceTargets.push(c);
-      });
       resourceNodes.push(group);
       return group;
     }
@@ -827,7 +906,7 @@
       let seed = s;
       const rng = () => { seed = (seed * 1664525 + 1013904223) | 0; return (seed >>> 0) / 4294967296; };
       const margin = 18;
-      const centerExclude = 30;
+      const centerExclude = 100;
       const clusterCenters = [];
 
       const clusterTypes = ['tree', 'tree', 'stone', 'stone', 'metal', 'metal', 'crystal', 'crystal'];
@@ -840,30 +919,33 @@
       }
       for (let ci = 0; ci < NUM_CLUSTERS * 5; ci++) {
         if (clusterCenters.length >= NUM_CLUSTERS) break;
-        const cx = -HALF + margin + rng() * (TS - margin * 2);
-        const cz = -HALF + margin + rng() * (TS - margin * 2);
-        if (Math.abs(cx) < centerExclude && Math.abs(cz) < centerExclude) continue;
-        if (clusterCenters.some(c => Math.hypot(c.x - cx, c.z - cz) < 30)) continue;
-        const cell = getCell(cx, cz);
+        const wx = -HALF + margin + rng() * (TS - margin * 2);
+        const wz = -HALF + margin + rng() * (TS - margin * 2);
+        if (Math.abs(wx) < centerExclude && Math.abs(wz) < centerExclude) continue;
+        if (clusterCenters.some(c => Math.hypot(c.x - wx, c.z - wz) < 100)) continue;
+        const cell = getCell(wx, wz);
         if (foundations.some(f => f.cx === cell.cx && f.cz === cell.cz)) continue;
         const type = clusterTypes[clusterCenters.length];
-        clusterCenters.push({ x: cx, z: cz, type });
+        clusterCenters.push({ x: wx, z: wz, type, ccell: cell });
       }
 
-      // Spawn nodes within each cluster
+      // Spawn nodes at cell positions within each cluster
+      const usedCells = new Set();
       for (const cc of clusterCenters) {
-        const count = 5 + Math.floor(rng() * 8); // 5-12 nodes per cluster
-        for (let j = 0; j < count * 4; j++) {
+        const count = cc.type === 'tree' ? 1 : 4 + Math.floor(rng() * 5);
+        for (let j = 0; j < count * 20; j++) {
           if (resourceNodes.length >= NUM_RESOURCES) break;
           const ang = rng() * Math.PI * 2;
-          const rad = 1.5 + rng() * 4;
+          const rad = 10 + rng() * 35;
           const nx = cc.x + Math.cos(ang) * rad;
           const nz = cc.z + Math.sin(ang) * rad;
           if (Math.abs(nx) > HALF - margin || Math.abs(nz) > HALF - margin) continue;
           const cell = getCell(nx, nz);
+          const key = `${cell.cx},${cell.cz}`;
+          if (usedCells.has(key)) continue;
           if (foundations.some(f => f.cx === cell.cx && f.cz === cell.cz)) continue;
-          if (resourceNodes.some(g => Math.abs(g.position.x - nx) + Math.abs(g.position.z - nz) < 2)) continue;
-          spawnResourceNode(cc.type, nx, nz);
+          usedCells.add(key);
+          spawnResourceNode(cc.type, cell.cx, cell.cz);
         }
       }
     }
@@ -895,7 +977,7 @@
       }
     }
 
-    function mineResource(group) {
+    function mineResource(group, hitMesh) {
       const now = performance.now();
       if (now - lastMineTime < MINE_COOLDOWN) return;
       if (playerStats.energy < 3) { showToast('Too tired — rest to regain energy'); return; }
@@ -914,10 +996,14 @@
       }
 
       group.userData.hp -= 10;
+      if (group.userData.cellKey && cellResources[group.userData.cellKey]) {
+        cellResources[group.userData.cellKey].hp = group.userData.hp;
+      }
 
       // Deduct tool durability
       if (equippedTool && equippedTool.key !== 'fists') {
         equippedTool.durability -= 1;
+        playerTools[equippedTool.key] = equippedTool.durability;
         if (equippedTool.durability <= 0) {
           showToast(TOOLS[equippedTool.key].name + ' broke!');
           equippedTool = null;
@@ -931,14 +1017,16 @@
       else playTone(520, 0.06, 'square', 0.05);
       spawnParticles(group.position.x, group.position.y, group.position.z, def.color, 6);
 
+      // Flash only the hit tree (trees have treeIdx), or flash all for non-tree resources
+      const hitIdx = hitMesh ? hitMesh.userData.treeIdx : undefined;
       group.children.forEach(c => {
-        if (c.material) {
-          c.material.emissive = new THREE.Color(0xffffff);
-          c.material.emissiveIntensity = 0.6;
-          setTimeout(() => {
-            if (c.material) { c.material.emissive = new THREE.Color(0x000000); c.material.emissiveIntensity = 0; }
-          }, 80);
-        }
+        if (!c.material) return;
+        if (hitIdx !== undefined && c.userData.treeIdx !== hitIdx) return;
+        c.material.emissive = new THREE.Color(0xffffff);
+        c.material.emissiveIntensity = 0.6;
+        setTimeout(() => {
+          if (c.material) { c.material.emissive = new THREE.Color(0x000000); c.material.emissiveIntensity = 0; }
+        }, 80);
       });
 
       if (group.userData.hp <= 0) {
@@ -951,6 +1039,9 @@
           group.userData.hp = group.userData.maxHp;
           group.visible = true;
           group.userData.respawnTimer = null;
+          if (group.userData.cellKey && cellResources[group.userData.cellKey]) {
+            cellResources[group.userData.cellKey].hp = group.userData.maxHp;
+          }
         }, def.respawn);
       } else {
         showToast(def.name + ' (' + group.userData.hp + '/' + group.userData.maxHp + ')');
@@ -1011,12 +1102,12 @@
 
     // ── ITEMS (resources used to build infrastructure) ──
     const ITEMS = {
-      wood:       { name: 'Wood',       color: '#8B4513' },
-      stone:      { name: 'Stone',      color: '#808080' },
-      metal:      { name: 'Metal',      color: '#4488cc' },
-      vibranium:  { name: 'Vibranium',  color: '#8844cc' },
+      wood:       { name: 'Wood',       color: '#8B4513', icon: 'assets/wood.png' },
+      stone:      { name: 'Stone',      color: '#808080', icon: 'assets/stone.png' },
+      metal:      { name: 'Metal',      color: '#4488cc', icon: 'assets/metal.png' },
+      vibranium:  { name: 'Vibranium',  color: '#8844cc', icon: 'assets/vibranium.png' },
       electronics:{ name: 'Electronics',color: '#44cc88' },
-      scrap:      { name: 'Scrap',      color: '#cc8844' },
+      scrap:      { name: 'Scrap',      color: '#cc8844', icon: 'assets/scrap.png' },
     };
 
     const ITEM_ORDER = ['wood','stone','metal','vibranium','electronics','scrap'];
@@ -1152,26 +1243,79 @@
 
     const hotbarEl = document.getElementById('hotbar');
 
-    document.getElementById('hint-keys').textContent = '1-' + ITEM_ORDER.length;
+    document.getElementById('hint-keys').textContent = '1-' + Object.keys(TOOLS).length;
 
     function buildHotbar() {
       hotbarEl.innerHTML = '';
-      ITEM_ORDER.forEach((key, i) => {
+      // Items (no hotkeys)
+      ITEM_ORDER.forEach(key => {
         const item = ITEMS[key];
         const qty = playerInventory[key] || 0;
         const btn = document.createElement('div');
         btn.className = 'hb-btn';
-        btn.innerHTML = `<span class="key">${i + 1}</span><span class="swatch" style="background:${item.color}"></span><span class="hb-label">${qty}</span>`;
+        const swatchHtml = item.icon
+          ? `<img class="swatch" src="${item.icon}" alt="${item.name}">`
+          : `<span class="swatch" style="background:${item.color}"></span>`;
+        btn.innerHTML = swatchHtml + `<span class="hb-label">${qty}</span>`;
         hotbarEl.appendChild(btn);
+      });
+      // Tool slots with hotkeys + pixel icons + durability bars
+      const toolIconMap = { wood_pickaxe: 'assets/wood_pickaxe.png', stone_pickaxe: 'assets/stone_pickaxe.png', metal_pickaxe: 'assets/metal.png' };
+      const toolKeys = Object.keys(TOOLS);
+      toolKeys.forEach((key, i) => {
+        const def = TOOLS[key];
+        const owned = playerTools[key] || 0;
+        const isEq = equippedTool && equippedTool.key === key;
+        const pct = owned ? Math.round((owned / def.maxDurability) * 100) : 0;
+        const slot = document.createElement('div');
+        slot.className = 'hb-btn hb-slot' + (isEq ? ' equipped' : '') + (owned ? ' owned' : '');
+        const iconHtml = owned
+          ? `<img class="swatch" src="${toolIconMap[key] || ''}" alt="${def.name}" style="image-rendering:pixelated;">`
+          : `<span class="swatch" style="background:rgba(74,63,50,0.04);border-color:rgba(74,63,50,0.04);"></span>`;
+        const labelHtml = owned ? `<span class="hb-label" title="${def.name}">${def.name.substring(0,4)}</span>` : '';
+        const durHtml = owned ? `<div class="dur-bar"><div class="dur-fill" style="width:${pct}%;background:${pct > 50 ? '#5a8a6a' : pct > 25 ? '#c89a3a' : '#e84242'}"></div></div>` : '';
+        slot.innerHTML = `<span class="key">${i + 1}</span>${iconHtml}${labelHtml}${durHtml}`;
+        hotbarEl.appendChild(slot);
       });
     }
 
     function refreshHotbar() {
-      const slots = hotbarEl.querySelectorAll('.hb-btn');
-      ITEM_ORDER.forEach((key, i) => {
-        if (slots[i]) {
-          slots[i].querySelector('.hb-label').textContent = playerInventory[key] || 0;
+      const allBtns = hotbarEl.querySelectorAll('.hb-btn');
+      const itemKeys = ITEM_ORDER;
+      const toolKeys = Object.keys(TOOLS);
+      // Update item slots
+      itemKeys.forEach((key, i) => {
+        if (allBtns[i]) allBtns[i].querySelector('.hb-label').textContent = playerInventory[key] || 0;
+      });
+      // Update tool slots (after items; separator isn't an hb-btn so doesn't count)
+      const toolIconMap = { wood_pickaxe: 'assets/wood_pickaxe.png', stone_pickaxe: 'assets/stone_pickaxe.png', metal_pickaxe: 'assets/metal.png' };
+      const toolStart = itemKeys.length;
+      toolKeys.forEach((key, i) => {
+        const slot = allBtns[toolStart + i];
+        if (!slot) return;
+        const owned = playerTools[key] || 0;
+        const isEq = equippedTool && equippedTool.key === key;
+        const def = TOOLS[key];
+        const pct = owned ? Math.round((owned / def.maxDurability) * 100) : 0;
+        const swatch = slot.querySelector('.swatch');
+        if (swatch) {
+          if (owned) {
+            swatch.outerHTML = `<img class="swatch" src="${toolIconMap[key] || ''}" alt="${def.name}" style="image-rendering:pixelated;">`;
+          } else {
+            swatch.outerHTML = `<span class="swatch" style="background:rgba(74,63,50,0.04);border-color:rgba(74,63,50,0.04);"></span>`;
+          }
         }
+        const label = slot.querySelector('.hb-label');
+        if (label) label.textContent = owned ? def.name.substring(0,4) : '';
+        const durBar = slot.querySelector('.dur-bar');
+        if (durBar) durBar.remove();
+        if (owned) {
+          const db = document.createElement('div');
+          db.className = 'dur-bar';
+          db.innerHTML = `<div class="dur-fill" style="width:${pct}%;background:${pct > 50 ? '#5a8a6a' : pct > 25 ? '#c89a3a' : '#e84242'}"></div>`;
+          slot.appendChild(db);
+        }
+        slot.className = 'hb-btn hb-slot' + (isEq ? ' equipped' : '') + (owned ? ' owned' : '');
       });
       const ti = document.getElementById('tool-indicator');
       if (equippedTool && TOOLS[equippedTool.key]) {
@@ -1468,11 +1612,17 @@
       tick();
     }
 
-    // ── BLOCK POPUP ──────────────────────────────
+    // ── BLOCK POPUP (Popover API) ───────────────
     let actionTarget = null;
+    let wasJustDismissed = false;
     const bpEl = document.getElementById('block-popup');
+    bpEl.addEventListener('beforetoggle', e => {
+      if (!e.newState.includes('open')) {
+        clearSelectionOutline(); actionTarget = null; wasJustDismissed = true;
+      }
+    });
     const bpTitleEl = document.getElementById('bp-title');
-    const bpSubEl = document.getElementById('bp-sub');
+    const bpCoordsEl = document.getElementById('bp-coords');
     const bpHpFillEl = document.getElementById('bp-hp-fill');
     const bpHpLabelEl = document.getElementById('bp-hp-label');
     const bpBuildSection = document.getElementById('bp-build-section');
@@ -1514,12 +1664,11 @@
       const tDef = tiers ? tiers[tier] : null;
 
       // Title
+      bpCoordsEl.textContent = 'Cell ' + entry.cx + ', ' + entry.cz;
       if (hasBuilding) {
         bpTitleEl.textContent = (tDef ? tDef.name : BUILDING_TYPES[entry.building]?.name || entry.building).toUpperCase();
-        bpSubEl.textContent = tiers ? `Tier ${tier + 1} / ${tiers.length}` : '';
       } else {
-        bpTitleEl.textContent = 'NEW CONSTRUCTION  [' + entry.cx + ', ' + entry.cz + ']';
-        bpSubEl.textContent = 'Select a building type';
+        bpTitleEl.textContent = 'New Construction';
       }
 
       // HP
@@ -1545,11 +1694,12 @@
           if (!bt) continue;
           const btn = document.createElement('button');
           btn.className = 'bp-btn';
-          const swatch = document.createElement('span');
-          swatch.className = 'swatch';
-          swatch.style.background = '#' + bt.color.toString(16).padStart(6,'0');
-          btn.appendChild(swatch);
-          btn.appendChild(document.createTextNode(bt.name || key));
+          const dot = document.createElement('span');
+          dot.className = 'dot';
+          dot.style.background = '#' + bt.color.toString(16).padStart(6,'0');
+          btn.appendChild(dot);
+          btn.appendChild(document.createTextNode(key.charAt(0).toUpperCase() + key.slice(1)));
+          btn.title = (bt.name || key) + ' — ' + bt.desc;
           btn.addEventListener('click', () => {
             if (!canPlaceAt(entry.cx, entry.cz)) { sfxError(); showToast('Cannot build here'); return; }
             entry.building = key;
@@ -1642,7 +1792,7 @@
         bpActionSection.style.display = 'none';
       }
 
-      bpEl.classList.add('open');
+      bpEl.showPopover();
     }
 
     function closeBlockPopup() {
@@ -1652,7 +1802,7 @@
       }
       clearSelectionOutline();
       actionTarget = null;
-      bpEl.classList.remove('open');
+      bpEl.hidePopover();
     }
 
     function handleRotate(entry) {
@@ -1904,6 +2054,7 @@
       zoom: 1, pitch: Math.PI / 3, yaw: Math.PI / 4, dist: 120,
       playerDir: 0, keys: {},
       smoothPos: new THREE.Vector3(), smoothTarget: new THREE.Vector3(),
+      shadowFollow: new THREE.Vector3(),
     };
 
     // ── PLAYER STATS ─────────────────────────────
@@ -1945,7 +2096,7 @@
 
     document.addEventListener('keydown', e => {
       state.keys[e.code] = true;
-      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyC','KeyE','Escape'].includes(e.code)) {
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyC','KeyE','Escape','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6'].includes(e.code)) {
         e.preventDefault();
       }
       if (e.code === 'KeyV') {
@@ -1963,18 +2114,25 @@
         if (actionTarget) { closeBlockPopup(); return; }
         window.location.href = 'solar-system.html';
       }
-      // Hotbar slot preview (no action — items shown, building via popup)
+      // Tool hotkeys (1-3 equip tools)
       const num = parseInt(e.code.replace('Digit', ''));
-      if (num >= 1 && num <= ITEM_ORDER.length) {
-        const slots = hotbarEl.querySelectorAll('.hb-btn');
-        slots.forEach(s => s.classList.remove('active'));
-        if (slots[num - 1]) slots[num - 1].classList.add('active');
-        setTimeout(() => { if (slots[num - 1]) slots[num - 1].classList.remove('active'); }, 400);
+      const toolKeys = Object.keys(TOOLS);
+      if (num >= 1 && num <= toolKeys.length) {
+        const key = toolKeys[num - 1];
+        if (playerTools[key]) {
+          equippedTool = { key, durability: playerTools[key] };
+          saveInventory();
+          refreshHotbar();
+          showToast('Equipped ' + TOOLS[key].name);
+        } else {
+          sfxError();
+          showToast('No ' + TOOLS[key].name + ' crafted');
+        }
       }
     });
     document.addEventListener('keyup', e => { state.keys[e.code] = false; });
 
-    // ── INVENTORY ────────────────────────────────
+    // ── INVENTORY (Dialog API) ───────────────────
     let inventoryOpen = false;
     const invOverlay = document.getElementById('inventory-overlay');
     const invGrid = document.getElementById('inv-grid');
@@ -1994,9 +2152,17 @@
           const qty = playerInventory[key] || 0;
           const card = document.createElement('div');
           card.className = 'inv-card';
-          const swatch = document.createElement('div');
-          swatch.className = 'inv-swatch';
-          swatch.style.background = item.color;
+          let swatch;
+          if (item.icon) {
+            swatch = document.createElement('img');
+            swatch.className = 'inv-swatch';
+            swatch.src = item.icon;
+            swatch.alt = item.name;
+          } else {
+            swatch = document.createElement('div');
+            swatch.className = 'inv-swatch';
+            swatch.style.background = item.color;
+          }
           card.appendChild(swatch);
           const info = document.createElement('div');
           info.className = 'inv-info';
@@ -2096,15 +2262,15 @@
       });
 
       inventoryOpen = true;
-      invOverlay.classList.add('open');
+      invOverlay.showModal();
     }
 
     function closeInventory() {
       inventoryOpen = false;
-      invOverlay.classList.remove('open');
+      invOverlay.close();
     }
 
-    // Close inventory on overlay backdrop click or X button
+    // Close inventory on backdrop click
     invOverlay.addEventListener('click', e => { if (e.target === invOverlay) closeInventory(); });
     document.getElementById('inv-close').addEventListener('click', closeInventory);
 
@@ -2148,15 +2314,22 @@
       clickMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       clickRay.setFromCamera(clickMouse, camera);
 
-      // Resource gathering (click trees/rocks to mine)
-      const resourceHits = clickRay.intersectObjects(resourceTargets);
-      if (resourceHits.length > 0) {
-        const hit = resourceHits[0].object;
-        const group = hit.userData.resourceGroup;
-        if (group && group.userData.respawnTimer === null) {
-          mineResource(group);
+      // Determine ground cell (shared by resource detection and build popup)
+      let groundCell = null;
+      if (clickRay.ray.intersectPlane(groundPlane, intersectPoint)) {
+        groundCell = getCell(intersectPoint.x, intersectPoint.z);
+      }
+
+      // Cell-based resource detection (primary — via cellResources metadata)
+      if (groundCell) {
+        const cr = cellResources[`${groundCell.cx},${groundCell.cz}`];
+        if (cr && cr.group && cr.group.visible && cr.group.userData.respawnTimer === null) {
+          // Secondary raycast against group children for treeIdx (per-tree flash)
+          const childHits = clickRay.intersectObjects(cr.group.children);
+          const hitMesh = childHits.length > 0 ? childHits[0].object : null;
+          mineResource(cr.group, hitMesh);
+          return;
         }
-        return;
       }
 
       const buildingHits = clickRay.intersectObjects(buildingTargets);
@@ -2173,21 +2346,20 @@
         if (entry && !entry.building) { showBlockPopup(entry); return; }
       }
 
-      // Click on empty ground → show build popup (no visible foundation)
-      if (clickRay.ray.intersectPlane(groundPlane, intersectPoint)) {
-        const cell = getCell(intersectPoint.x, intersectPoint.z);
+      // Click on empty ground → show build popup
+      if (groundCell) {
         const pc = getCell(player.position.x, player.position.z);
-        if (cell.cx !== pc.cx || cell.cz !== pc.cz) {
-          let entry = foundations.find(f => f.cx === cell.cx && f.cz === cell.cz);
-          if (!entry && !foundations.some(f => f.cx === cell.cx && f.cz === cell.cz && f.building)) {
-            entry = { cx: cell.cx, cz: cell.cz, mesh: null, edge: null, building: null, buildingMeshes: null, collider: null, tier: 0, hp: 0, maxHp: 100 };
+        if (groundCell.cx !== pc.cx || groundCell.cz !== pc.cz) {
+          let entry = foundations.find(f => f.cx === groundCell.cx && f.cz === groundCell.cz);
+          if (!entry && !foundations.some(f => f.cx === groundCell.cx && f.cz === groundCell.cz && f.building)) {
+            entry = { cx: groundCell.cx, cz: groundCell.cz, mesh: null, edge: null, building: null, buildingMeshes: null, collider: null, tier: 0, hp: 0, maxHp: 100 };
             foundations.push(entry);
           }
-          if (entry && !entry.building) { showBlockPopup(entry); return; }
+          if (entry && !entry.building && !wasJustDismissed) { wasJustDismissed = false; showBlockPopup(entry); return; }
+          if (wasJustDismissed) wasJustDismissed = false;
         }
       }
-
-      if (actionTarget) closeBlockPopup();
+      wasJustDismissed = false;
     });
 
     renderer.domElement.addEventListener('contextmenu', e => {
@@ -2311,6 +2483,13 @@
 
       document.getElementById('pos-x').textContent = 'X: ' + Math.round(player.position.x);
       document.getElementById('pos-z').textContent = 'Z: ' + Math.round(player.position.z);
+
+      // Make shadow camera follow player with lerp smoothing
+      const p = player.position;
+      state.shadowFollow.lerp(new THREE.Vector3(p.x, 0, p.z), 3 * dt);
+      sun.target.position.set(state.shadowFollow.x, 0, state.shadowFollow.z);
+      sun.position.set(state.shadowFollow.x + 80, 100, state.shadowFollow.z + 40);
+      sun.target.updateMatrixWorld();
 
       // ── PLAYER STATS REGEN ──
       const now = performance.now();
