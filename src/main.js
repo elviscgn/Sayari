@@ -152,7 +152,7 @@ function playTone(freq, dur, type, vol) {
     initAudio(); if (!audioCtx) return;
     const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
     osc.type = type || 'sine';
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(Math.max(30, Math.min(2000, freq)), audioCtx.currentTime);
     gain.gain.setValueAtTime(vol || 0.08, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur || 0.1));
     osc.connect(gain); gain.connect(audioCtx.destination);
@@ -178,38 +178,41 @@ function startAmbientMusic() {
   try {
     initAudio(); if (!audioCtx) return; ambientStarted = true;
     const master = audioCtx.createGain();
-    master.gain.setValueAtTime(ctx.musicMuted ? 0 : 1, audioCtx.currentTime);
+    master.gain.setValueAtTime(0, audioCtx.currentTime);
+    master.gain.linearRampToValueAtTime(ctx.musicMuted ? 0 : 0.35, audioCtx.currentTime + 1.5);
     master.connect(audioCtx.destination);
     ctx.ambientMaster = master;
     const baseIdx = SEED % 12;
     const SCALE = [0,2,4,5,7,9,11];
-    const note = 55 + SCALE[baseIdx % SCALE.length] + Math.floor(SEED/12)*12;
-    const baseFreq = 27.5 * Math.pow(2, (note-21)/12);
+    const noteBase = 36 + (SEED % 48);
+    const note = noteBase + SCALE[baseIdx % SCALE.length];
+    const baseFreq = Math.min(440, Math.max(55, 27.5 * Math.pow(2, (note-21)/12)));
     const oscs = [], gains = [];
     for (let i = 0; i < 3; i++) {
-      const f = baseFreq * Math.pow(2, i*12/12);
+      const f = Math.min(660, baseFreq * Math.pow(2, i));
       const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-      osc.type = 'sine'; osc.frequency.setValueAtTime(f + (i-1)*0.3, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.025 - i*0.005, audioCtx.currentTime);
+      osc.type = 'sine'; osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.02 - i*0.006, audioCtx.currentTime);
       osc.connect(gain); gain.connect(master);
       osc.start(); oscs.push(osc); gains.push(gain);
       ambientNodes.push(osc, gain);
     }
     const lfo = audioCtx.createOscillator(), lfoGain = audioCtx.createGain();
     lfo.type = 'sine'; lfo.frequency.setValueAtTime(0.08 + (SEED%5)*0.02, audioCtx.currentTime);
-    lfoGain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+    lfoGain.gain.setValueAtTime(0.008, audioCtx.currentTime);
     lfo.connect(lfoGain); lfoGain.connect(gains[0].gain); lfoGain.connect(gains[1].gain); lfoGain.connect(gains[2].gain);
     lfo.start(); ambientNodes.push(lfo, lfoGain);
     const fifth = audioCtx.createOscillator(), fifthGain = audioCtx.createGain();
-    fifth.type = 'sine'; fifth.frequency.setValueAtTime(baseFreq*1.5, audioCtx.currentTime);
-    fifthGain.gain.setValueAtTime(0.012, audioCtx.currentTime);
+    fifth.type = 'sine'; fifth.frequency.setValueAtTime(Math.min(440, baseFreq*1.5), audioCtx.currentTime);
+    fifthGain.gain.setValueAtTime(0.008, audioCtx.currentTime);
     fifth.connect(fifthGain); fifthGain.connect(master);
     fifth.start(); ambientNodes.push(fifth, fifthGain);
     function scheduleChime() {
       if (!ambientStarted) return;
       setTimeout(() => {
         if (!ambientStarted || ctx.musicMuted) { scheduleChime(); return; }
-        playTone(baseFreq * Math.pow(2, SCALE[Math.floor(Math.random()*SCALE.length)]/12) * 2, 0.6+Math.random()*0.4, 'sine', 0.015);
+        const chimeFreq = Math.min(660, Math.max(130, baseFreq * Math.pow(2, SCALE[Math.floor(Math.random()*SCALE.length)]/12) * 2));
+        playTone(chimeFreq, 0.5+Math.random()*0.3, 'sine', 0.008);
         scheduleChime();
       }, 4000 + Math.random() * 8000);
     }

@@ -54,7 +54,7 @@ export const BUILD_COSTS = {
   workshop: [{ wood:15, stone:5 }, { metal:10 }, { electronics:10, metal:5 }],
   gate:     [{ wood:8 }, { stone:8 }, { iron_ore:8 }, { vibranium_ore:8 }],
   beacon:   [{ wood:5, stone:5 }, { metal:5, copper_ore:3 }, { electronics:8, metal:5 }],
-  factory:  [{ wood:20, stone:10 }, { iron_ore:300, copper_ore:300, stone:100 }, { metal:50, electronics:20, vibranium:10 }],
+  factory:  [{ wood:20, stone:10 }, { metal:30, copper_ore:30, stone:10 }, { metal:50, electronics:20, vibranium:10 }],
 };
 
 export const PROCESS_RECIPES = {
@@ -418,16 +418,17 @@ export function initBlockPopup(ctx) {
   ctx.bpEl = bpEl;
   ctx.bpTitleEl = document.getElementById('bp-title');
   ctx.bpSubtitleEl = document.getElementById('bp-subtitle');
+  ctx.bpTierPips = document.getElementById('bp-tier-pips');
   ctx.bpHpSection = document.getElementById('bp-hp-section');
   ctx.bpHpFillEl = document.getElementById('bp-hp-fill');
   ctx.bpHpLabelEl = document.getElementById('bp-hp-label');
-  ctx.bpBuildSection = document.getElementById('bp-build-section');
-  ctx.bpBuildGrid = document.getElementById('bp-build-grid');
-  ctx.bpConfirmRow = document.getElementById('bp-confirm-row');
-  ctx.bpBuildBtn = document.getElementById('bp-build-btn');
-  ctx.bpActionSection = document.getElementById('bp-action-section');
-  ctx.bpActionGrid = document.getElementById('bp-action-grid');
-  ctx.bpTierBadge = document.getElementById('bp-tier-badge');
+  ctx.bpEnergySection = document.getElementById('bp-energy-section');
+  ctx.bpEnergyVal = document.getElementById('bp-energy-val');
+  ctx.bpEnergyMax = document.getElementById('bp-energy-max');
+  ctx.bpEnergyFill = document.getElementById('bp-energy-fill');
+  ctx.bpUpgradeSection = document.getElementById('bp-upgrade-section');
+  ctx.bpUpgradeTitle = document.getElementById('bp-upgrade-title');
+  ctx.bpUpgradeCost = document.getElementById('bp-upgrade-cost');
   ctx.bpDragSection = document.getElementById('bp-drag-section');
   ctx.bpDragSlots = document.getElementById('bp-drag-slots');
   ctx.bpRecipePreview = document.getElementById('bp-recipe-preview');
@@ -438,9 +439,12 @@ export function initBlockPopup(ctx) {
   ctx.bpRecipeGrid = document.getElementById('bp-recipe-grid');
   ctx.bpInvSnapshot = document.getElementById('bp-inv-snapshot');
   ctx.bpInvGrid = document.getElementById('bp-inv-grid');
-  ctx.bpEnergyBar = document.getElementById('bp-energy-bar');
-  ctx.bpEnergyVal = document.getElementById('bp-energy-val');
-  ctx.bpEnergyMax = document.getElementById('bp-energy-max');
+  ctx.bpBuildSection = document.getElementById('bp-build-section');
+  ctx.bpBuildGrid = document.getElementById('bp-build-grid');
+  ctx.bpConfirmRow = document.getElementById('bp-confirm-row');
+  ctx.bpBuildBtn = document.getElementById('bp-build-btn');
+  ctx.bpActionSection = document.getElementById('bp-action-section');
+  ctx.bpActionGrid = document.getElementById('bp-action-grid');
   document.getElementById('bp-close').addEventListener('click', () => closeBlockPopup(ctx));
 
   ctx.bpClearSlots.addEventListener('click', e => {
@@ -819,6 +823,57 @@ function renderInvSnapshot(entry, ctx) {
   });
 }
 
+function renderTierPips(tier, total, ctx) {
+  const el = ctx.bpTierPips;
+  el.style.display = 'flex';
+  el.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('span');
+    dot.className = 'bp-pip';
+    if (i < tier) {
+      dot.classList.add('filled', 't' + Math.min(i, 2));
+    } else {
+      dot.classList.add('unfilled');
+    }
+    el.appendChild(dot);
+  }
+}
+
+function renderUpgradeSection(entry, ctx) {
+  const tiers = UPGRADE_TIERS[entry.building];
+  if (!tiers || entry.tier >= tiers.length - 1) {
+    ctx.bpUpgradeSection.style.display = 'none';
+    return;
+  }
+  ctx.bpUpgradeSection.style.display = 'block';
+  const nextTier = entry.tier + 1;
+  const cost = getBuildCost(entry.building, nextTier);
+  const nextDef = tiers[nextTier];
+  ctx.bpUpgradeTitle.textContent = 'UPGRADE TO ' + nextDef.name;
+
+  const costEl = ctx.bpUpgradeCost;
+  costEl.innerHTML = '';
+  const canAfford = ctx.hasItems(cost);
+  for (const [k, v] of Object.entries(cost)) {
+    const item = ITEMS[k];
+    const owned = ctx.playerInventory[k] || 0;
+    const chip = document.createElement('span');
+    chip.className = 'bp-upg-item' + (owned >= v ? ' met' : ' unmet');
+    const icon = item && item.icon
+      ? '<img class="upg-icon" src="' + item.icon + '">'
+      : '';
+    chip.innerHTML = icon + ' <span class="upg-name">' + (item ? item.name : k) + '</span> <span class="upg-have">' + owned + '</span>/<span class="upg-req">' + v + '</span>';
+    costEl.appendChild(chip);
+  }
+
+  const upgBtn = document.createElement('button');
+  upgBtn.className = 'bp-btn bp-btn-primary';
+  upgBtn.textContent = 'UPGRADE';
+  upgBtn.disabled = !canAfford;
+  upgBtn.addEventListener('click', e => { e.stopPropagation(); handleUpgrade(entry, ctx); });
+  costEl.appendChild(upgBtn);
+}
+
 export function showBlockPopup(entry, ctx) {
   ctx.hoverMesh.visible = false;
   ctx.hoverOutline.visible = false;
@@ -832,21 +887,18 @@ export function showBlockPopup(entry, ctx) {
   const buildingType = entry.building;
   const isProcessor = buildingType === 'workshop' || buildingType === 'factory';
 
-  ctx.bpSubtitleEl.textContent = 'Cell ' + entry.cx + ', ' + entry.cz;
-  ctx.bpTitleEl.textContent = hasBuilding ? (tDef ? tDef.name : BUILDING_TYPES[entry.building]?.name || entry.building).toUpperCase() : 'NEW CONSTRUCTION';
+  // ── Title & subtitle ──
+  ctx.bpTitleEl.textContent = hasBuilding
+    ? (tDef ? tDef.name : BUILDING_TYPES[entry.building]?.name || entry.building).toUpperCase()
+    : 'NEW CONSTRUCTION';
+  ctx.bpSubtitleEl.textContent = hasBuilding ? 'Cell ' + entry.cx + ', ' + entry.cz : '';
 
-  // Tier badge
-  if (hasBuilding && tDef && tiers && tiers.length > 1) {
-    ctx.bpTierBadge.style.display = 'inline-block';
-    ctx.bpTierBadge.className = 't' + tier;
-    ctx.bpTierBadge.textContent = tDef.name + ' (Tier ' + (tier + 1) + '/' + tiers.length + ')';
-  } else if (hasBuilding && tDef) {
-    ctx.bpTierBadge.style.display = 'inline-block';
-    ctx.bpTierBadge.className = 't0';
-    ctx.bpTierBadge.textContent = tDef.name;
-  } else ctx.bpTierBadge.style.display = 'none';
+  // ── Tier pips ──
+  if (hasBuilding && tiers) {
+    renderTierPips(tier, tiers.length, ctx);
+  } else ctx.bpTierPips.style.display = 'none';
 
-  // HP section
+  // ── HP section ──
   if (hasBuilding) {
     ctx.bpHpSection.style.display = 'block';
     const hp = entry.hp || 0, maxHp = entry.maxHp || 100, pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
@@ -855,14 +907,21 @@ export function showBlockPopup(entry, ctx) {
     ctx.bpHpLabelEl.textContent = 'HP ' + Math.round(hp) + '/' + maxHp;
   } else ctx.bpHpSection.style.display = 'none';
 
-  // Energy bar (processor only)
+  // ── Energy section (processor only) ──
   if (hasBuilding && isProcessor) {
-    ctx.bpEnergyBar.style.display = 'block';
-    ctx.bpEnergyVal.textContent = Math.round(ctx.playerStats.energy);
-    ctx.bpEnergyMax.textContent = ctx.playerStats.maxEnergy;
-  } else ctx.bpEnergyBar.style.display = 'none';
+    ctx.bpEnergySection.style.display = 'block';
+    const en = ctx.playerStats.energy, maxEn = ctx.playerStats.maxEnergy;
+    ctx.bpEnergyVal.textContent = Math.round(en);
+    ctx.bpEnergyMax.textContent = maxEn;
+    ctx.bpEnergyFill.style.width = (en / maxEn * 100) + '%';
+  } else ctx.bpEnergySection.style.display = 'none';
 
-  // Drag section (workshop/factory only)
+  // ── Upgrade section (processor only) ──
+  if (hasBuilding && isProcessor) {
+    renderUpgradeSection(entry, ctx);
+  } else ctx.bpUpgradeSection.style.display = 'none';
+
+  // ── Drag section (processor only) ──
   if (hasBuilding && isProcessor) {
     ctx.bpDragSection.style.display = 'block';
     if (!ctx._dragSlots || ctx._dragSlots.length === 0) {
@@ -875,10 +934,22 @@ export function showBlockPopup(entry, ctx) {
     renderRecipePreview(matched, ctx);
     ctx.bpNoMatch.style.display = matched ? 'none' : (ctx._dragSlots.some(s => s.key) ? 'block' : 'none');
     ctx.bpProcessBtn.style.display = matched ? 'block' : 'none';
-    ctx.bpProcessBtn.textContent = matched ? 'PROCESS ' + formatRecipeOutput(matched).toUpperCase() : 'PROCESS';
+    ctx.bpProcessBtn.textContent = matched ? 'PROCESS → ' + formatRecipeOutput(matched).toUpperCase() : 'PROCESS';
   } else ctx.bpDragSection.style.display = 'none';
 
-  // Build section (new construction only)
+  // ── Recipe section (processor only) ──
+  if (hasBuilding && isProcessor) {
+    ctx.bpRecipeSection.style.display = 'block';
+    renderRecipeButtons(ctx._matchedRecipe, entry, ctx);
+  } else ctx.bpRecipeSection.style.display = 'none';
+
+  // ── Inventory snapshot (processor only) ──
+  if (hasBuilding && isProcessor) {
+    ctx.bpInvSnapshot.style.display = 'block';
+    renderInvSnapshot(entry, ctx);
+  } else ctx.bpInvSnapshot.style.display = 'none';
+
+  // ── Build section (new construction only) ──
   ctx.bpBuildSection.style.display = hasBuilding ? 'none' : 'block';
   ctx.bpConfirmRow.style.display = 'none';
   ctx.bpActionSection.style.display = hasBuilding ? 'block' : 'none';
@@ -931,21 +1002,9 @@ export function showBlockPopup(entry, ctx) {
     });
   }
 
-  // Recipe section (workshop/factory only)
-  if (hasBuilding && isProcessor) {
-    ctx.bpRecipeSection.style.display = 'block';
-    renderRecipeButtons(ctx._matchedRecipe, entry, ctx);
-  } else ctx.bpRecipeSection.style.display = 'none';
-
-  // Action section
+  // ── Action section ──
   ctx.bpActionGrid.innerHTML = '';
   if (hasBuilding) {
-    const nextTier = tiers ? tiers[tier + 1] : null;
-    if (nextTier) {
-      const uBtn = document.createElement('button'); uBtn.className = 'bp-btn'; uBtn.textContent = 'Upgrade ' + nextTier.name;
-      uBtn.addEventListener('click', e => { e.stopPropagation(); handleUpgrade(entry, ctx); });
-      ctx.bpActionGrid.appendChild(uBtn);
-    }
     if (tier > 0) {
       const dwBtn = document.createElement('button'); dwBtn.className = 'bp-btn'; dwBtn.textContent = 'Downgrade';
       dwBtn.addEventListener('click', e => { e.stopPropagation(); handleDowngrade(entry, ctx); });
@@ -968,12 +1027,6 @@ export function showBlockPopup(entry, ctx) {
     repBtn.addEventListener('click', e => { e.stopPropagation(); handleRepair(entry, ctx); });
     ctx.bpActionGrid.appendChild(repBtn);
   }
-
-  // Inventory snapshot (processor only)
-  if (hasBuilding && isProcessor) {
-    ctx.bpInvSnapshot.style.display = 'block';
-    renderInvSnapshot(entry, ctx);
-  } else ctx.bpInvSnapshot.style.display = 'none';
 
   ctx.bpBuildBtn.onclick = e => {
     e.stopPropagation();
