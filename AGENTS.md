@@ -1,33 +1,39 @@
 # Safayi
 
-Two-file 3D solar system with walkable planet surfaces.
+Vite + vanilla JS 3D survival sandbox — solar system, planet surfaces, building, crafting.
 
 ## Quick start
 
-Open `solar-system.html` in any browser. Click a planet → Info panel → "Enter Planet" navigates to `surface.html?planet=Name`.
+```bash
+npm run dev
+```
 
-## Files
+Navigate to `http://localhost:5173/?planet=Name` — click cell → build foundation → place building.
 
-- **`solar-system.html`** — Solar system view (orbits, click-to-lock, info panel, procedural planet textures, Sun shader)
-- **`surface.html`** — Planet surface (standalone, navigated to via query param `?planet=Name`)
+## Project structure
 
-Three.js r128 from CDN (`jsDelivr`), no bundler, no npm, no tests, no CI.
+- **`index.html`** — Vite entry point
+- **`src/main.js`** — Orchestrator: context, scene, input, game loop, audio, GLB loader
+- **`src/buildings.js`** — Building types, mesh generation, placement, popup, save/load
+- **`src/player.js`** — Player construction, movement, stats
+- **`src/terrain.js`** — Terrain gen, resources, mining
+- **`src/utils/noise.js`** — Value noise / hash2D
+- **`src/utils/camera.js`** — Isometric/third-person camera
+- **`src/ui/hud.js`**, **`hotbar.js`**, **`inventory.js`**, **`controls.js`** — UI
+- **`src/style.css`** — All styles
+- **`assets/`** — GLB models, textures, audio (Vite public dir)
 
-## Surface scene
+Three.js r128 from CDN (`jsDelivr`), ES modules with `export`/`import`, shared state in `ctx`.
 
-- **Terrain**: PlaneGeometry(600x600, 120 segs) with value noise FBM (6 octaves, seeded per planet name), vertex-colored per-planet
-- **Camera**: PerspectiveCamera at fixed angle (~60 deg), not orthographic. Smooth follow via lerp
-- **Player**: Low-poly humanoid (BoxGeometry torso/arms/legs, SphereGeometry head)
-- **Movement**: Arrow keys / WASD, mouse raycast-aims on terrain, `e.preventDefault()` on arrow keys
+## Factory GLB
 
-## Camera modes on surface
-
-- **Isometric** (default) — PerspectiveCamera at fixed pitch/yaw, screen-relative arrow movement
-- **Third-person** — PerspectiveCamera behind player, movement relative to player facing
-- **V** to toggle, scroll to zoom
+- `assets/factory.glb` (24MB) — loaded in `main.js` on startup via GLTFLoader
+- Placed via `makeBuildingMesh` in `buildings.js`: cloned from `ctx.factoryModelScene`, scaled to fill `CELL` (45 units) via bounding box extent, Y-offset via `-worldBox.min.y` so bottom sits at ground level
+- Available on all planets, 3 upgrade tiers (Workshop → Factory → Automaton)
+- Fallback: box geometry if GLB hasn't loaded yet
+- `animatePlacement` preserves pre-existing scale (multiplies from 0.01× to 1× of original)
 
 ## Known conventions
 
 - Terrain uses `hash2D` from planet name seed, not Math.random
-- Navigates between files via `window.location.href` — no single-page app
 - `opencode.json` loads `AGENTS.md` as instructions

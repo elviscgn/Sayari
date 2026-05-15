@@ -53,21 +53,25 @@
   <div id="hotbar"></div>
 
   <div id="block-popup" popover="auto">
-    <div class="bp-scroll">
-      <div class="bp-title" id="bp-title">New Construction</div>
-      <div class="bp-coords" id="bp-coords"></div>
-      <div class="bp-hp-wrap" id="bp-hp-wrap">
+    <div id="bp-panel">
+      <button id="bp-close">✕</button>
+      <div id="bp-title">NEW CONSTRUCTION</div>
+      <div id="bp-subtitle"></div>
+      <div id="bp-hp-section" style="display:none">
         <div class="bp-hp-bar"><div class="bp-hp-fill" id="bp-hp-fill"></div></div>
         <div class="bp-hp-label" id="bp-hp-label">HP 100/100</div>
       </div>
-      <div class="bp-section" id="bp-build-section">
-        <div class="bp-section-label">Select Type</div>
+      <div id="bp-build-section">
         <div class="bp-grid" id="bp-build-grid"></div>
       </div>
-      <div class="bp-section" id="bp-action-section">
-        <div class="bp-section-label">Actions</div>
-        <div class="bp-grid" id="bp-action-grid"></div>
+      <div id="bp-confirm-row" style="display:none">
+        <button id="bp-build-btn">BUILD</button>
       </div>
+      <div id="bp-action-section" style="display:none">
+        <div class="section-label" style="border-top:0;padding-top:0;">ACTIONS</div>
+        <div id="bp-action-grid"></div>
+      </div>
+      <div id="bp-hint">ESC · Back &nbsp;&nbsp;&nbsp; Click · Select &nbsp;&nbsp;&nbsp; Enter · Build</div>
     </div>
   </div>
 

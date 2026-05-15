@@ -125,6 +125,26 @@ export function anyCollision(px, pz, ctx) {
   return false;
 }
 
+export function resolvePlayerCollision(ctx) {
+  const px = ctx.player.position.x, pz = ctx.player.position.z;
+  const r = ctx.PLAYER_RADIUS;
+  function pushOut(box) {
+    const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
+    const dx = px - cx, dz = pz - cz;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < 0.01) { ctx.player.position.x = box.maxX + r; return true; }
+    const halfW = (box.maxX - box.minX) / 2 + r;
+    const halfD = (box.maxZ - box.minZ) / 2 + r;
+    const nx = cx + Math.sign(dx) * halfW;
+    const nz = cz + Math.sign(dz) * halfD;
+    ctx.player.position.x = nx;
+    ctx.player.position.z = nz;
+    return true;
+  }
+  for (const f of ctx.foundations) { if (f.collider && collides(px, pz, r, f.collider)) { pushOut(f.collider); return; } }
+  for (const c of ctx.buildingColliders) { if (collides(px, pz, r, c)) { pushOut(c); return; } }
+}
+
 // ── BUILDING MESH ──
 
 export function makeBuildingMesh(typeKey, color, transparent, opacity, ctx) {
@@ -132,10 +152,10 @@ export function makeBuildingMesh(typeKey, color, transparent, opacity, ctx) {
   let meshes = [];
 
   if (typeKey === 'wall') {
-    const s = ctx.CELL - 0.4, h = 4.5;
+    const s = ctx.CELL - 0.4, h = 10;
     const body = new THREE.Mesh(new THREE.BoxGeometry(s, h, s), mat);
     body.position.set(0, h / 2, 0); meshes.push(body);
-    const cH = 0.7, cS = 1.5, inset = 1.2;
+    const cH = 0.9, cS = 1.8, inset = 1.2;
     [[-s/2+inset,-s/2+inset],[-s/2+inset,s/2-inset],[s/2-inset,-s/2+inset],[s/2-inset,s/2-inset],[0,-s/2+inset],[-s/2+inset,0],[s/2-inset,0],[0,s/2-inset]].forEach(([x,z]) => {
       const c = new THREE.Mesh(new THREE.BoxGeometry(cS, cH, cS), mat);
       c.position.set(x, h + cH / 2, z); meshes.push(c);
@@ -150,7 +170,7 @@ export function makeBuildingMesh(typeKey, color, transparent, opacity, ctx) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(ctx.CELL-1, 0.1, ctx.CELL*0.6), mat);
     m.position.set(0, 0.05, 0); m.rotation.z = 0.3; meshes.push(m);
   } else if (typeKey === 'gate') {
-    const s = ctx.CELL - 0.4, h = 4.0, pw = 0.8;
+    const s = ctx.CELL - 0.4, h = 8.0, pw = 0.8;
     const left = new THREE.Mesh(new THREE.BoxGeometry(pw, h, pw), mat);
     left.position.set(-s/2+pw/2, h/2, 0); meshes.push(left);
     const right = new THREE.Mesh(new THREE.BoxGeometry(pw, h, pw), mat);
@@ -172,7 +192,14 @@ export function makeBuildingMesh(typeKey, color, transparent, opacity, ctx) {
   } else if (typeKey === 'factory') {
     if (ctx.factoryModelScene) {
       const clone = ctx.factoryModelScene.clone();
-      clone.position.set(0, 0, 0);
+      const box = new THREE.Box3().setFromObject(clone);
+      const size = box.getSize(new THREE.Vector3());
+      const extent = Math.max(size.x, size.z);
+      const s = extent > 0.001 && isFinite(extent) ? ctx.CELL / extent : 1;
+      clone.scale.set(s, s, s);
+      clone.updateMatrixWorld(true);
+      const wBox = new THREE.Box3().setFromObject(clone);
+      clone.position.set(0, -wBox.min.y, 0);
       clone.traverse(c => {
         if (c.isMesh) { c.material = c.material.clone(); c.material.color.setHex(color); c.material.transparent = transparent; c.material.opacity = opacity; }
       });
@@ -248,12 +275,12 @@ export function canPlaceAt(cx, cz, ctx) {
 
 // ── PLACEMENT ──
 
-export function placeBuilding(cx, cz, typeKey, rotation, ctx) {
+export function placeBuilding(cx, cz, typeKey, rotation, ctx, free) {
   if (ctx.foundations.some(f => f.cx === cx && f.cz === cz && f.building)) return;
   const pc = getCell(ctx.player.position.x, ctx.player.position.z, ctx);
   if (pc.cx === cx && pc.cz === cz) return;
   const cost = getBuildCost(typeKey, 0);
-  if (!ctx.hasItems(cost)) { ctx.sfxError(); ctx.showToast('Not enough resources'); return; }
+  if (!free && !ctx.hasItems(cost)) { ctx.sfxError(); ctx.showToast('Not enough resources'); return; }
 
   let entry = ctx.foundations.find(f => f.cx === cx && f.cz === cz);
   if (entry) {
@@ -294,11 +321,12 @@ export function placeBuilding(cx, cz, typeKey, rotation, ctx) {
   entry.building = typeKey; entry.rotation = rotation; entry.buildingMeshes = meshes; entry.colliderAABBs = aabbs;
   entry.tier = 0; entry.hp = tMaxHp; entry.maxHp = tMaxHp;
   ctx.createHpBar(entry);
-  ctx.spendItems(cost); ctx.saveInventory();
+  if (!free) { ctx.spendItems(cost); ctx.saveInventory(); }
   ctx.sfxBuild();
   animateFlash(center.x, center.z, 0xd4a84a, 2, ctx);
   ctx.showToast(tDef ? tDef.name : BUILDING_TYPES[typeKey].name + ' built');
   ctx.saveBuildings();
+  ctx.resolvePlayerCollision();
 }
 
 // ── ANIMATION EFFECTS ──
@@ -317,9 +345,18 @@ function animateFlash(wx, wz, color, count, ctx) {
 }
 
 function animatePlacement(meshes) {
-  meshes.forEach(m => { m.scale.set(0.01, 0.01, 0.01); });
+  const origScales = meshes.map(m => m.scale.x);
+  meshes.forEach(m => { const os = m.scale.x; m.scale.set(os * 0.01, os * 0.01, os * 0.01); });
   const start = performance.now();
-  function tick() { const t = Math.min(1, (performance.now()-start)/250); const s = 0.01+0.99*(1-Math.pow(1-t,3)); meshes.forEach(m => m.scale.set(s,s,s)); if (t<1) requestAnimationFrame(tick); }
+  function tick() {
+    const t = Math.min(1, (performance.now()-start)/250);
+    meshes.forEach((m, i) => {
+      const os = origScales[i];
+      const s = os * (0.01 + 0.99 * (1 - Math.pow(1 - t, 3)));
+      m.scale.set(s, s, s);
+    });
+    if (t < 1) requestAnimationFrame(tick);
+  }
   tick();
 }
 
@@ -336,13 +373,17 @@ export function initBlockPopup(ctx) {
   });
   ctx.bpEl = bpEl;
   ctx.bpTitleEl = document.getElementById('bp-title');
-  ctx.bpCoordsEl = document.getElementById('bp-coords');
+  ctx.bpSubtitleEl = document.getElementById('bp-subtitle');
+  ctx.bpHpSection = document.getElementById('bp-hp-section');
   ctx.bpHpFillEl = document.getElementById('bp-hp-fill');
   ctx.bpHpLabelEl = document.getElementById('bp-hp-label');
   ctx.bpBuildSection = document.getElementById('bp-build-section');
   ctx.bpBuildGrid = document.getElementById('bp-build-grid');
+  ctx.bpConfirmRow = document.getElementById('bp-confirm-row');
+  ctx.bpBuildBtn = document.getElementById('bp-build-btn');
   ctx.bpActionSection = document.getElementById('bp-action-section');
   ctx.bpActionGrid = document.getElementById('bp-action-grid');
+  document.getElementById('bp-close').addEventListener('click', () => closeBlockPopup(ctx));
 }
 
 // ── SELECTION HIGHLIGHT ──
@@ -413,6 +454,52 @@ export function updateHpBars(dt, ctx) {
 
 // ── POPUP LOGIC ──
 
+const BUILD_ICONS = {
+  wall: '\u{1F9F1}', turret: '\u{1F5FC}', solar: '\u{2600}\u{FE0F}',
+  storage: '\u{1F4E6}', workshop: '\u{1F527}', gate: '\u{1F6AA}',
+  beacon: '\u{1F4E1}', factory: '\u{1F3ED}',
+};
+
+function formatCost(costObj, items) {
+  return Object.entries(costObj || {}).map(([k, v]) => {
+    const name = items[k] ? items[k].name.toLowerCase() : k;
+    return v + ' ' + name;
+  }).join(' \u00B7 ');
+}
+
+function doBuild(entry, key, ctx) {
+  if (!canPlaceAt(entry.cx, entry.cz, ctx)) { ctx.sfxError(); ctx.showToast('Cannot build here'); return; }
+  const cost = getBuildCost(key, 0);
+  if (!ctx.hasItems(cost)) { ctx.sfxError(); ctx.showToast('Not enough resources'); return; }
+  const bt = BUILDING_TYPES[key];
+  const tier0 = UPGRADE_TIERS[key][0];
+  entry.building = key; entry.tier = 0;
+  entry.maxHp = tier0.maxHp; entry.hp = tier0.maxHp; entry.rotation = 0;
+  if (entry.mesh) ctx.scene.remove(entry.mesh);
+  if (entry.edge) ctx.scene.remove(entry.edge);
+  const mi = ctx.foundationTargets.indexOf(entry.mesh);
+  if (mi !== -1) ctx.foundationTargets.splice(mi, 1);
+  if (entry.collider) entry.collider = null;
+  entry.mesh = null; entry.edge = null;
+  const center = getCellCenter(entry.cx, entry.cz, ctx);
+  const meshes = makeBuildingMesh(key, tier0.color, false, 1, ctx);
+  meshes.forEach(m => { m.position.x += center.x; m.position.z += center.z; ctx.scene.add(m); });
+  entry.buildingMeshes = meshes;
+  meshes.forEach(m => ctx.buildingTargets.push(m));
+  const aabbs = getBuildingAABBs(center.x, center.z, key, 0, ctx);
+  aabbs.forEach(a => ctx.buildingColliders.push(a));
+  entry.colliderAABBs = aabbs;
+  animatePlacement(meshes);
+  createHpBar(entry, ctx);
+  ctx.spendItems(cost);
+  ctx.sfxBuild();
+  animateFlash(center.x, center.z, 0xd4a84a, 2, ctx);
+  ctx.showToast('Built ' + (bt ? bt.name : key));
+  closeBlockPopup(ctx);
+  ctx.saveBuildings();
+  ctx.resolvePlayerCollision();
+}
+
 export function showBlockPopup(entry, ctx) {
   ctx.hoverMesh.visible = false;
   ctx.hoverOutline.visible = false;
@@ -424,65 +511,71 @@ export function showBlockPopup(entry, ctx) {
   const tier = entry.tier || 0;
   const tDef = tiers ? tiers[tier] : null;
 
-  ctx.bpCoordsEl.textContent = 'Cell ' + entry.cx + ', ' + entry.cz;
-  ctx.bpTitleEl.textContent = hasBuilding ? (tDef ? tDef.name : BUILDING_TYPES[entry.building]?.name || entry.building).toUpperCase() : 'New Construction';
+  ctx.bpSubtitleEl.textContent = 'Cell ' + entry.cx + ', ' + entry.cz;
+  ctx.bpTitleEl.textContent = hasBuilding ? (tDef ? tDef.name : BUILDING_TYPES[entry.building]?.name || entry.building).toUpperCase() : 'NEW CONSTRUCTION';
 
-  const hpWrap = document.getElementById('bp-hp-wrap');
   if (hasBuilding) {
-    hpWrap.style.display = 'block';
+    ctx.bpHpSection.style.display = 'block';
     const hp = entry.hp || 0, maxHp = entry.maxHp || 100, pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
     ctx.bpHpFillEl.style.width = pct + '%';
     ctx.bpHpFillEl.style.background = pct > 60 ? '#5a8a6a' : pct > 30 ? '#b8954a' : '#cc4444';
-    ctx.bpHpLabelEl.textContent = `HP ${Math.round(hp)}/${maxHp}`;
-  } else hpWrap.style.display = 'none';
+    ctx.bpHpLabelEl.textContent = 'HP ' + Math.round(hp) + '/' + maxHp;
+  } else ctx.bpHpSection.style.display = 'none';
+
+  ctx.bpBuildSection.style.display = hasBuilding ? 'none' : 'block';
+  ctx.bpConfirmRow.style.display = 'none';
+  ctx.bpActionSection.style.display = hasBuilding ? 'block' : 'none';
+  let selectedKey = null;
 
   if (!hasBuilding) {
-    ctx.bpBuildSection.style.display = 'block';
     ctx.bpBuildGrid.innerHTML = '';
-    for (const key of ctx.typeKeys) {
+    ctx.typeKeys.forEach(key => {
       const bt = BUILDING_TYPES[key];
-      if (!bt) continue;
-      const btn = document.createElement('button');
-      btn.className = 'bp-btn';
-      const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = '#' + bt.color.toString(16).padStart(6,'0');
-      btn.appendChild(dot);
-      btn.appendChild(document.createTextNode(key.charAt(0).toUpperCase() + key.slice(1)));
-      btn.title = (bt.name || key) + ' — ' + bt.desc;
-      btn.addEventListener('click', () => {
-        if (!canPlaceAt(entry.cx, entry.cz, ctx)) { ctx.sfxError(); ctx.showToast('Cannot build here'); return; }
-        entry.building = key; entry.tier = 0;
-        const tier0 = UPGRADE_TIERS[key][0];
-        entry.maxHp = tier0.maxHp; entry.hp = tier0.maxHp; entry.rotation = 0;
-        if (entry.mesh) ctx.scene.remove(entry.mesh);
-        if (entry.edge) ctx.scene.remove(entry.edge);
-        const mi = ctx.foundationTargets.indexOf(entry.mesh);
-        if (mi !== -1) ctx.foundationTargets.splice(mi, 1);
-        if (entry.collider) entry.collider = null;
-        entry.mesh = null; entry.edge = null;
-        const center = getCellCenter(entry.cx, entry.cz, ctx);
-        const meshes = makeBuildingMesh(key, tier0.color, false, 1, ctx);
-        meshes.forEach(m => { m.position.x += center.x; m.position.z += center.z; ctx.scene.add(m); });
-        entry.buildingMeshes = meshes;
-        meshes.forEach(m => ctx.buildingTargets.push(m));
-        const aabbs = getBuildingAABBs(center.x, center.z, key, 0, ctx);
-        aabbs.forEach(a => ctx.buildingColliders.push(a));
-        entry.colliderAABBs = aabbs;
-        animatePlacement(meshes);
-        createHpBar(entry, ctx);
-        ctx.sfxBuild();
-        animateFlash(center.x, center.z, 0xd4a84a, 2, ctx);
-        ctx.showToast('Built ' + (bt.name || key));
-        closeBlockPopup(ctx);
-        ctx.saveBuildings();
-      });
-      ctx.bpBuildGrid.appendChild(btn);
-    }
-  } else ctx.bpBuildSection.style.display = 'none';
+      if (!bt) return;
+      const cost = getBuildCost(key, 0);
+      const canAfford = ctx.hasItems(cost);
+      const card = document.createElement('button');
+      card.className = 'bp-card' + (canAfford ? '' : ' locked');
+      card.dataset.key = key;
+
+      const iconEl = document.createElement('span');
+      iconEl.className = 'bp-card-icon';
+      iconEl.textContent = BUILD_ICONS[key] || '\u{2753}';
+      card.appendChild(iconEl);
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'bp-card-name';
+      nameEl.textContent = bt.name.toUpperCase();
+      card.appendChild(nameEl);
+
+      const costEl = document.createElement('span');
+      costEl.className = 'bp-card-cost';
+      costEl.textContent = formatCost(cost, ITEMS);
+      card.appendChild(costEl);
+
+      if (!canAfford) {
+        const badge = document.createElement('span');
+        badge.className = 'bp-card-badge';
+        badge.textContent = 'need materials';
+        card.appendChild(badge);
+      }
+
+      if (canAfford) {
+        card.addEventListener('click', e => {
+          e.stopPropagation();
+          ctx.bpBuildGrid.querySelectorAll('.bp-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedKey = key;
+          ctx.bpConfirmRow.style.display = 'flex';
+        });
+      }
+
+      ctx.bpBuildGrid.appendChild(card);
+    });
+  }
 
   ctx.bpActionGrid.innerHTML = '';
   if (hasBuilding) {
-    ctx.bpActionSection.style.display = 'block';
-
     const nextTier = tiers ? tiers[tier + 1] : null;
     if (nextTier) {
       const uBtn = document.createElement('button'); uBtn.className = 'bp-btn'; uBtn.textContent = 'Upgrade ' + nextTier.name;
@@ -505,13 +598,13 @@ export function showBlockPopup(entry, ctx) {
     repBtn.addEventListener('click', e => { e.stopPropagation(); handleRepair(entry, ctx); });
     ctx.bpActionGrid.appendChild(repBtn);
 
-    if (entry.building === 'workshop') {
+    if (entry.building === 'workshop' || entry.building === 'factory') {
       const recipes = tier === 0 ? PROCESS_RECIPES.workshop : [...PROCESS_RECIPES.workshop, ...PROCESS_RECIPES.lab];
       recipes.forEach(r => {
         const pBtn = document.createElement('button'); pBtn.className = 'bp-btn'; pBtn.textContent = r.label;
         const costStr = Object.entries(r.input).map(([k,v]) => v+' '+ITEMS[k].name).join(' + ');
         const outStr = Object.entries(r.output).map(([k,v]) => v+' '+ITEMS[k].name).join(' + ');
-        pBtn.title = costStr + ' → ' + outStr + ' (' + r.energy + ' EN)';
+        pBtn.title = costStr + ' \u2192 ' + outStr + ' (' + r.energy + ' EN)';
         pBtn.disabled = !ctx.hasItems(r.input) || ctx.playerStats.energy < r.energy;
         pBtn.addEventListener('click', e => {
           e.stopPropagation();
@@ -525,7 +618,12 @@ export function showBlockPopup(entry, ctx) {
         ctx.bpActionGrid.appendChild(pBtn);
       });
     }
-  } else ctx.bpActionSection.style.display = 'none';
+  }
+
+  ctx.bpBuildBtn.onclick = e => {
+    e.stopPropagation();
+    if (selectedKey) doBuild(entry, selectedKey, ctx);
+  };
 
   if (!ctx.bpEl.matches(':popover-open')) ctx.bpEl.showPopover();
 }
@@ -676,7 +774,7 @@ export function loadBuildings(ctx) {
   const savedToast = ctx.showToast; ctx.showToast = () => {};
   for (const d of data) {
     if (!d.building) continue;
-    placeBuilding(d.cx, d.cz, d.building, d.rotation || 0, ctx);
+    placeBuilding(d.cx, d.cz, d.building, d.rotation || 0, ctx, true);
     const entry = ctx.foundations[ctx.foundations.length - 1];
     if (entry) { entry.tier = d.tier || 0; entry.hp = d.hp || 100; refreshHpBar(entry, ctx); }
   }

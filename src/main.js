@@ -6,7 +6,7 @@ import { init as initCamera, toggleMode, update as updateCamera } from './utils/
 import { makeRng } from './utils/noise.js';
 
 import { BUILDING_TYPES, UPGRADE_TIERS, BUILD_COSTS, PROCESS_RECIPES, PLANET_BUILDS, ITEMS, ITEM_ORDER,
-  getBuildCost, anyCollision, makeBuildingMesh, getBuildingAABBs,
+  getBuildCost, anyCollision, resolvePlayerCollision, makeBuildingMesh, getBuildingAABBs,
   placeFoundation, canPlaceAt, placeBuilding,
   initBlockPopup, showBlockPopup, closeBlockPopup,
   handleRotate, handleUpgrade, handleDowngrade, handleDismantle, handleRepair,
@@ -77,7 +77,8 @@ const ctx = {
   getBuildCost, makeBuildingMesh, getBuildingAABBs,
   anyCollision: (px, pz) => anyCollision(px, pz, ctx),
   placeFoundation, canPlaceAt, placeBuilding,
-  showBlockPopup, closeBlockPopup,
+  showBlockPopup,
+  closeBlockPopup: () => closeBlockPopup(ctx),
   handleRotate, handleUpgrade, handleDowngrade, handleDismantle, handleRepair,
   createHpBar: (entry) => createHpBar(entry, ctx),
   refreshHpBar: (entry) => refreshHpBar(entry, ctx),
@@ -87,6 +88,7 @@ const ctx = {
   generateResources, mineResource, spawnParticles, getCell, getCellCenter,
   updateStatsUI: (args) => updateStatsUI(args, ctx),
   drainEnergy: (amount) => drainEnergy(amount, ctx),
+  resolvePlayerCollision: () => resolvePlayerCollision(ctx),
   openInventory: () => openInventory(ctx),
   closeInventory: () => closeInventory(ctx),
   buildHotbar: () => buildHotbar(ctx),
@@ -99,6 +101,7 @@ const ctx = {
   buildingColliders: [],
   resourceNodes: [],
   cellResources: {},
+  hoveredResource: null,
   lastMineTime: 0,
   playerInventory: {},
   playerTools: {},
@@ -119,9 +122,24 @@ const ctx = {
 (function loadFactoryModel() {
   const loader = new THREE.GLTFLoader();
   loader.load('assets/factory.glb', gltf => {
+    console.log('FACTORY GLB LOADED | scene type:', gltf.scene.type, 'children:', gltf.scene.children.length, 'meshes:', gltf.scene.children.filter(c=>c.isMesh).length);
     ctx.factoryModelScene = gltf.scene;
     ctx.factoryModelScene.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
-  }, undefined, () => {});
+    ctx.foundations.forEach(entry => {
+      if (entry.building === 'factory' && entry.buildingMeshes) {
+        const center = getCellCenter(entry.cx, entry.cz, ctx);
+        const tierDef = (UPGRADE_TIERS.factory || [])[entry.tier || 0];
+        const tColor = tierDef ? tierDef.color : 0xcc8844;
+        const newMeshes = makeBuildingMesh('factory', tColor, false, 1, ctx);
+        newMeshes.forEach(m => { m.position.x += center.x; m.position.z += center.z; ctx.scene.add(m); });
+        entry.buildingMeshes.forEach(m => { ctx.scene.remove(m); });
+        const ti = ctx.buildingTargets.indexOf(entry.buildingMeshes[0]);
+        if (ti !== -1) ctx.buildingTargets.splice(ti, 1);
+        newMeshes.forEach(m => ctx.buildingTargets.push(m));
+        entry.buildingMeshes = newMeshes;
+      }
+    });
+  }, undefined, err => { console.error('FACTORY GLB LOAD ERROR:', err); });
 })();
 
 // ── AUDIO ──
@@ -297,11 +315,34 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => { ctx.state.keys[e.code] = false; });
 
-// ── MOUSE ──
-
 renderer.domElement.addEventListener('mousemove', e => {
   const nx = (e.clientX / window.innerWidth) * 2 - 1, ny = -(e.clientY / window.innerHeight) * 2 + 1;
   mouse.set(nx, ny); ray.setFromCamera(mouse, camera);
+
+  // Resource hover highlight
+  const visibleResources = ctx.resourceNodes.filter(g => g.visible && g.userData.respawnTimer === null);
+  const resourceHits = ray.intersectObjects(visibleResources, true);
+  let hitResource = null;
+  for (const h of resourceHits) {
+    if (h.object.userData && h.object.userData.noHit) continue;
+    let obj = h.object.parent;
+    while (obj) {
+      if (obj.userData && obj.userData.isResource) { hitResource = obj; break; }
+      obj = obj.parent;
+    }
+    if (hitResource) break;
+  }
+  if (ctx.hoveredResource && ctx.hoveredResource !== hitResource) {
+    ctx.hoveredResource.traverse(c => { if (c.isMesh && c.material && c.material.emissive) { c.material.emissive.setHex(0x000000); c.material.emissiveIntensity = 0; } });
+    ctx.hoveredResource = null;
+  }
+  if (hitResource) {
+    const typeKey = hitResource.userData.typeKey;
+    const highlightColor = typeKey === 'tree' ? 0x44ff66 : typeKey === 'stone' ? 0xaaaaff : 0xff88ff;
+    hitResource.traverse(c => { if (c.isMesh && c.material && c.material.emissive) { c.material.emissive.setHex(highlightColor); c.material.emissiveIntensity = 0.3; } });
+    ctx.hoveredResource = hitResource;
+  }
+
   if (ray.ray.intersectPlane(groundPlane, intersectPoint)) {
     const dx = intersectPoint.x - ctx.player.position.x, dz = intersectPoint.z - ctx.player.position.z;
     ctx.state.playerDir = Math.atan2(dx, dz);
@@ -309,7 +350,7 @@ renderer.domElement.addEventListener('mousemove', e => {
     const center = getCellCenter(cell.cx, cell.cz, ctx);
     ctx.hoverMesh.position.set(center.x, 0.06, center.z);
     ctx.hoverOutline.position.set(center.x, 0.065, center.z);
-    const showHover = !ctx.actionTarget;
+    const showHover = !ctx.actionTarget && !ctx.hoveredResource;
     ctx.hoverMesh.visible = showHover;
     ctx.hoverOutline.visible = showHover;
     ctx.hoveredCell = cell;
@@ -337,10 +378,17 @@ renderer.domElement.addEventListener('click', e => {
     }
   }
 
-  const buildingHits = clickRay.intersectObjects(ctx.buildingTargets);
+  const buildingHits = clickRay.intersectObjects(ctx.buildingTargets, true);
   if (buildingHits.length > 0) {
-    const hitMesh = buildingHits[0].object;
-    const entry = ctx.foundations.find(f => f.buildingMeshes && f.buildingMeshes.includes(hitMesh));
+    let hitMesh = buildingHits[0].object;
+    let entry = ctx.foundations.find(f => f.buildingMeshes && f.buildingMeshes.includes(hitMesh));
+    if (!entry) {
+      entry = ctx.foundations.find(f => f.buildingMeshes && f.buildingMeshes.some(m => {
+        let p = hitMesh.parent;
+        while (p) { if (p === m) return true; p = p.parent; }
+        return false;
+      }));
+    }
     if (entry) { showBlockPopup(entry, ctx); return; }
   }
 
@@ -467,4 +515,5 @@ setTimeout(() => {
   loadInventory();
   loadBuildings(ctx);
   generateResources(ctx);
+  ctx.resolvePlayerCollision();
 }, 200);
