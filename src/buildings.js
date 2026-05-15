@@ -22,31 +22,39 @@ export const UPGRADE_TIERS = {
   factory:  [{ name:'Workshop', color:0xcc8844, maxHp:100 }, { name:'Factory', color:0xdd9955, maxHp:180 }, { name:'Automaton', color:0xeeaa66, maxHp:280 }],
 };
 
+export const ALL_ITEMS = [
+  'wood','stone','iron_ore','copper_ore','vibranium_ore','scrap','coal',
+  'metal','electronics','vibranium',
+  'refined_stone','recycled','refined_metal','refined_vib','circuit',
+];
+
 export const ITEMS = {
   wood:        { name:'Wood', color:'#8B4513', icon:'assets/wood.png' },
   stone:       { name:'Stone', color:'#808080', icon:'assets/stone.png' },
-  metal:       { name:'Metal', color:'#4488cc', icon:'assets/metal.png' },
-  vibranium:   { name:'Vibranium', color:'#8844cc', icon:'assets/vibranium.png' },
-  electronics: { name:'Electronics', color:'#44cc88', icon:'assets/circuit.png' },
+  iron_ore:    { name:'Iron Ore', color:'#cc8844', icon:'assets/metal.png' },
+  copper_ore:  { name:'Copper Ore', color:'#44cc88', icon:'assets/circuit.png' },
+  vibranium_ore:{name:'Vibranium Ore', color:'#8844cc', icon:'assets/vibranium.png' },
   scrap:       { name:'Scrap', color:'#cc8844', icon:'assets/scrap.png' },
-  plank:       { name:'Plank', color:'#c4954a', icon:'assets/wood.png' },
+  coal:        { name:'Coal', color:'#3a3a3a', icon:'assets/wood.png' },
+  metal:       { name:'Metal', color:'#4488cc', icon:'assets/metal.png' },
+  electronics: { name:'Electronics', color:'#44cc88', icon:'assets/circuit.png' },
+  vibranium:   { name:'Vibranium', color:'#8844cc', icon:'assets/vibranium.png' },
   refined_stone:{name:'Refined Stone', color:'#909090', icon:'assets/stone.png' },
+  recycled:    { name:'Recycled Mat.', color:'#cc9955', icon:'assets/scrap.png' },
   refined_metal:{name:'Refined Metal', color:'#5599dd', icon:'assets/metal.png' },
   refined_vib: { name:'Refined Vibranium', color:'#9955dd', icon:'assets/vibranium.png' },
-  recycled:    { name:'Recycled Mat.', color:'#cc9955', icon:'assets/scrap.png' },
   circuit:     { name:'Circuit', color:'#55dd99', icon:'assets/circuit.png' },
 };
-export const ITEM_ORDER = ['wood','stone','metal','vibranium','electronics','scrap'];
 
 export const BUILD_COSTS = {
-  wall:     [{ wood:10 }, { stone:10 }, { metal:10 }, { vibranium:10 }],
-  turret:   [{ metal:5, stone:10 }, { metal:3, electronics:5 }, { metal:5, electronics:8 }, { vibranium:5, electronics:5 }],
-  solar:    [{ electronics:5, metal:5 }, { electronics:5, metal:5 }, { electronics:10, metal:5 }],
-  storage:  [{ wood:10, metal:5 }, { metal:10 }, { metal:5, electronics:5 }],
+  wall:     [{ wood:10 }, { stone:10 }, { iron_ore:10 }, { vibranium_ore:10 }],
+  turret:   [{ iron_ore:5, stone:10 }, { metal:3, electronics:5 }, { metal:5, electronics:8 }, { vibranium:5, electronics:5 }],
+  solar:    [{ copper_ore:5, iron_ore:5 }, { electronics:5, metal:5 }, { electronics:10, metal:5 }],
+  storage:  [{ wood:10, iron_ore:5 }, { metal:10 }, { metal:5, electronics:5 }],
   workshop: [{ wood:15, stone:5 }, { metal:10 }, { electronics:10, metal:5 }],
-  gate:     [{ wood:8 }, { stone:8 }, { metal:8 }, { vibranium:8 }],
-  beacon:   [{ wood:5, stone:5 }, { metal:5, electronics:3 }, { electronics:8, metal:5 }],
-  factory:  [{ wood:20, stone:10 }, { metal:15, electronics:5 }, { refined_metal:10, circuit:5 }],
+  gate:     [{ wood:8 }, { stone:8 }, { iron_ore:8 }, { vibranium_ore:8 }],
+  beacon:   [{ wood:5, stone:5 }, { metal:5, copper_ore:3 }, { electronics:8, metal:5 }],
+  factory:  [{ wood:20, stone:10 }, { iron_ore:300, copper_ore:300, stone:100 }, { metal:50, electronics:20, vibranium:10 }],
 };
 
 export const PROCESS_RECIPES = {
