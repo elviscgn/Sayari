@@ -1,4 +1,4 @@
-import { ITEMS, ITEM_ORDER } from '../buildings.js';
+import { ITEMS, ALL_ITEMS } from '../buildings.js';
 
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1,3), 16);
@@ -19,8 +19,7 @@ export function init(ctx) {
 export function openInventory(ctx) {
   if (ctx.actionTarget) ctx.closeBlockPopup();
   ctx.invGrid.innerHTML = '';
-  const allKeys = [...ITEM_ORDER, 'plank','refined_stone','refined_metal','refined_vib','recycled','circuit'];
-  const hasItems = allKeys.filter(k => (ctx.playerInventory[k] || 0) > 0);
+  const hasItems = ALL_ITEMS.filter(k => (ctx.playerInventory[k] || 0) > 0);
 
   const resHeader = document.createElement('div');
   resHeader.className = 'section-label';
@@ -38,8 +37,12 @@ export function openInventory(ctx) {
       const qty = ctx.playerInventory[key] || 0;
       const card = document.createElement('div');
       card.className = 'inv-card';
+      card.draggable = true;
       card.style.background = `linear-gradient(135deg, ${hexToRgba(item.color, 0.1)}, ${hexToRgba(item.color, 0.03)})`;
       card.style.borderColor = hexToRgba(item.color, 0.15);
+      card.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ key, qty }));
+      });
       let swatch;
       if (item.icon) { swatch = document.createElement('img'); swatch.className = 'inv-swatch'; swatch.src = item.icon; swatch.alt = item.name; }
       else { swatch = document.createElement('div'); swatch.className = 'inv-swatch'; swatch.style.background = item.color; }

@@ -7,7 +7,14 @@ export function init(ctx) {
   });
 }
 
+let pxEl, pzEl;
+function getCoordEls() {
+  if (!pxEl) { pxEl = document.getElementById('pos-x'); pzEl = document.getElementById('pos-z'); }
+  return [pxEl, pzEl];
+}
+
 export function updateCoords(ctx) {
-  document.getElementById('pos-x').textContent = 'X: ' + Math.round(ctx.player.position.x);
-  document.getElementById('pos-z').textContent = 'Z: ' + Math.round(ctx.player.position.z);
+  const [xEl, zEl] = getCoordEls();
+  xEl.textContent = 'X: ' + Math.round(ctx.player.position.x);
+  zEl.textContent = 'Z: ' + Math.round(ctx.player.position.z);
 }

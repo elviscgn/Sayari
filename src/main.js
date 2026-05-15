@@ -5,7 +5,7 @@ import { buildPlayer, updatePlayerMovement, updateStatsUI, drainEnergy } from '.
 import { init as initCamera, toggleMode, update as updateCamera } from './utils/camera.js';
 import { makeRng } from './utils/noise.js';
 
-import { BUILDING_TYPES, UPGRADE_TIERS, BUILD_COSTS, PROCESS_RECIPES, PLANET_BUILDS, ITEMS, ITEM_ORDER,
+import { BUILDING_TYPES, UPGRADE_TIERS, BUILD_COSTS, PROCESS_RECIPES, PLANET_BUILDS, ITEMS, ALL_ITEMS,
   getBuildCost, anyCollision, resolvePlayerCollision, makeBuildingMesh, getBuildingAABBs,
   placeFoundation, canPlaceAt, placeBuilding,
   initBlockPopup, showBlockPopup, closeBlockPopup,
@@ -73,7 +73,7 @@ const ctx = {
   scene, camera, renderer,
   PLANET_NAME: PLANET_NAME, PLANET_DATA: PLANET_DATA, SEED: SEED, TS: TS, CELL: CELL, CELLS: CELLS,
   HALF: HALF, NUM_RESOURCES: NUM_RESOURCES, MINE_COOLDOWN: MINE_COOLDOWN, PLAYER_RADIUS: PLAYER_RADIUS, TOOLS: TOOLS,
-  BUILDING_TYPES, UPGRADE_TIERS, BUILD_COSTS, PROCESS_RECIPES, PLANET_BUILDS, ITEMS, ITEM_ORDER, RESOURCE_TYPES,
+  BUILDING_TYPES, UPGRADE_TIERS, BUILD_COSTS, PROCESS_RECIPES, PLANET_BUILDS, ITEMS, ALL_ITEMS, RESOURCE_TYPES,
   getBuildCost, makeBuildingMesh, getBuildingAABBs,
   anyCollision: (px, pz) => anyCollision(px, pz, ctx),
   placeFoundation, canPlaceAt, placeBuilding,
@@ -100,6 +100,7 @@ const ctx = {
   buildingTargets: [],
   buildingColliders: [],
   resourceNodes: [],
+  resourceHitMeshes: [],
   cellResources: {},
   hoveredResource: null,
   lastMineTime: 0,
@@ -261,6 +262,11 @@ ctx.toggleMusicMute = function() {
 
 const toastContainer = document.getElementById('toast-container');
 
+// ── FPS ──
+
+const fpsEl = document.getElementById('fps');
+let fpsFrames = 0, fpsLastUpdate = performance.now();
+
 // ── BUILD SCENE ──
 
 buildTerrain(ctx);
@@ -286,10 +292,11 @@ const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const intersectPoint = new THREE.Vector3();
 const clickRay = new THREE.Raycaster();
 const clickMouse = new THREE.Vector2();
+const posCellEl = document.getElementById('pos-cell');
 
 document.addEventListener('keydown', e => {
   ctx.state.keys[e.code] = true;
-  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyC','KeyE','KeyM','Escape','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6'].includes(e.code)) e.preventDefault();
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyC','KeyE','KeyM','Space','Escape','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].includes(e.code)) e.preventDefault();
 
   if (e.code === 'KeyV') { toggleMode(ctx); }
   if (e.code === 'KeyM') { ctx.toggleMusicMute(); }
@@ -303,14 +310,9 @@ document.addEventListener('keydown', e => {
     window.location.href = 'solar-system.html';
   }
   const num = parseInt(e.code.replace('Digit', ''));
-  const toolKeys = Object.keys(TOOLS);
-  if (num >= 1 && num <= toolKeys.length) {
-    const key = toolKeys[num - 1];
-    if (ctx.playerTools[key]) {
-      ctx.equippedTool = { key, durability: ctx.playerTools[key] };
-      ctx.saveInventory(); ctx.refreshHotbar();
-      ctx.showToast('Equipped ' + TOOLS[key].name);
-    } else { ctx.sfxError(); ctx.showToast('No ' + TOOLS[key].name + ' crafted'); }
+  if (num >= 1 && num <= 9) {
+    ctx.hotbarSelected = num - 1;
+    ctx.refreshHotbar();
   }
 });
 document.addEventListener('keyup', e => { ctx.state.keys[e.code] = false; });
@@ -320,17 +322,11 @@ renderer.domElement.addEventListener('mousemove', e => {
   mouse.set(nx, ny); ray.setFromCamera(mouse, camera);
 
   // Resource hover highlight
-  const visibleResources = ctx.resourceNodes.filter(g => g.visible && g.userData.respawnTimer === null);
-  const resourceHits = ray.intersectObjects(visibleResources, true);
+  const visibleMeshes = ctx.resourceHitMeshes.filter(m => m.parent.visible && m.parent.userData.respawnTimer === null);
+  const resourceHits = ray.intersectObjects(visibleMeshes, false);
   let hitResource = null;
-  for (const h of resourceHits) {
-    if (h.object.userData && h.object.userData.noHit) continue;
-    let obj = h.object.parent;
-    while (obj) {
-      if (obj.userData && obj.userData.isResource) { hitResource = obj; break; }
-      obj = obj.parent;
-    }
-    if (hitResource) break;
+  if (resourceHits.length > 0) {
+    hitResource = resourceHits[0].object.userData.resourceGroup || resourceHits[0].object.parent;
   }
   if (ctx.hoveredResource && ctx.hoveredResource !== hitResource) {
     ctx.hoveredResource.traverse(c => { if (c.isMesh && c.material && c.material.emissive) { c.material.emissive.setHex(0x000000); c.material.emissiveIntensity = 0; } });
@@ -354,7 +350,7 @@ renderer.domElement.addEventListener('mousemove', e => {
     ctx.hoverMesh.visible = showHover;
     ctx.hoverOutline.visible = showHover;
     ctx.hoveredCell = cell;
-    document.getElementById('pos-cell').textContent = `Cell: ${cell.cx}, ${cell.cz}`;
+    posCellEl.textContent = `Cell: ${cell.cx}, ${cell.cz}`;
   }
 });
 
@@ -381,14 +377,11 @@ renderer.domElement.addEventListener('click', e => {
   const buildingHits = clickRay.intersectObjects(ctx.buildingTargets, true);
   if (buildingHits.length > 0) {
     let hitMesh = buildingHits[0].object;
-    let entry = ctx.foundations.find(f => f.buildingMeshes && f.buildingMeshes.includes(hitMesh));
-    if (!entry) {
-      entry = ctx.foundations.find(f => f.buildingMeshes && f.buildingMeshes.some(m => {
-        let p = hitMesh.parent;
-        while (p) { if (p === m) return true; p = p.parent; }
-        return false;
-      }));
-    }
+    let entry = ctx.foundations.find(f => f.buildingMeshes && f.buildingMeshes.some(m => {
+      let p = hitMesh;
+      while (p) { if (p === m) return true; p = p.parent; }
+      return false;
+    }));
     if (entry) { showBlockPopup(entry, ctx); return; }
   }
 
@@ -420,10 +413,11 @@ renderer.domElement.addEventListener('wheel', e => { ctx.state.zoom = Math.max(0
 // ── INVENTORY ──
 
 function freshInventory() {
-  for (const k of ITEM_ORDER) ctx.playerInventory[k] = 0;
-  ['plank','refined_stone','refined_metal','refined_vib','recycled','circuit'].forEach(k => ctx.playerInventory[k] = 0);
-  ctx.playerInventory.wood = 5; ctx.playerInventory.stone = 5; ctx.playerInventory.metal = 3;
-  ctx.playerInventory.electronics = 2; ctx.playerInventory.scrap = 2;
+  ALL_ITEMS.forEach(k => ctx.playerInventory[k] = 0);
+  ctx.playerInventory.wood = 10;
+  ctx.playerInventory.stone = 10;
+  ctx.playerInventory.iron_ore = 3;
+  ctx.playerInventory.scrap = 3;
   ctx.refreshHotbar();
 }
 
@@ -432,8 +426,7 @@ function loadInventory() {
   if (raw) {
     try {
       const data = JSON.parse(raw); freshInventory();
-      const allLoadKeys = [...ITEM_ORDER, 'plank','refined_stone','refined_metal','refined_vib','recycled','circuit'];
-      for (const k of allLoadKeys) { if (typeof data[k] === 'number') ctx.playerInventory[k] = data[k]; }
+      for (const k of ALL_ITEMS) { if (typeof data[k] === 'number') ctx.playerInventory[k] = data[k]; }
     } catch(e) { freshInventory(); }
   } else { freshInventory(); }
   try { const t = JSON.parse(localStorage.getItem('safayi_tools_' + PLANET_NAME)); if (t) ctx.playerTools = t; } catch(e) {}
@@ -447,7 +440,7 @@ const FIXED_DT = 1 / 60;
 let accumulator = 0;
 let lastTime = performance.now();
 
-function update(dt) {
+function update(dt, now) {
   updatePlayerMovement(dt, ctx);
 
   // Camera follow
@@ -458,12 +451,12 @@ function update(dt) {
 
   // Selection pulse
   if (ctx.selectionOutline) {
-    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.003);
+    const pulse = 0.5 + 0.5 * Math.sin(now * 0.003);
     ctx.selectionOutline.forEach(l => { l.material.opacity = 0.5 + 0.3 * pulse; });
   }
 
   // Resource bobbing
-  const t = performance.now() * 0.001;
+  const t = now * 0.001;
   ctx.resourceNodes.forEach((g, i) => { if (g.visible && g.children.length > 0) { g.position.y = Math.sin(t * 0.8 + i * 0.7) * 0.03; } });
 
   // Coords
@@ -478,13 +471,20 @@ function update(dt) {
   sun.target.updateMatrixWorld();
 
   // Stats regen
-  const now = performance.now();
   const stats = ctx.playerStats;
   if (now - stats.lastDamageTime > 3000) stats.health = Math.min(stats.maxHealth, stats.health + stats.healthRegen * dt);
   stats.energy = Math.min(stats.maxEnergy, stats.energy + stats.energyRegen * dt);
   if (stats.isMoving) stats.stamina = Math.max(0, stats.stamina - 4 * dt);
   else stats.stamina = Math.min(stats.maxStamina, stats.stamina + stats.staminaRegen * dt);
   updateStatsUI(ctx);
+
+  // FPS
+  fpsFrames++;
+  if (now - fpsLastUpdate >= 1000) {
+    fpsEl.textContent = 'FPS: ' + fpsFrames;
+    fpsFrames = 0;
+    fpsLastUpdate = now;
+  }
 }
 
 function animate() {
@@ -494,7 +494,7 @@ function animate() {
   lastTime = now;
   if (frameTime > 0.1) frameTime = 0.1;
   accumulator += frameTime;
-  while (accumulator >= FIXED_DT) { update(FIXED_DT); accumulator -= FIXED_DT; }
+  while (accumulator >= FIXED_DT) { update(FIXED_DT, now); accumulator -= FIXED_DT; }
   renderer.render(scene, camera);
 }
 

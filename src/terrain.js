@@ -129,9 +129,9 @@ export function getCellCenter(cx, cz, ctx) {
 
 export const RESOURCE_TYPES = {
   tree:    { name: 'Tree',      color: 0x3aaa55, drop: { wood: 3 },                hp: 30, respawn: 30000, toolTier: 0 },
-  stone:   { name: 'Stone',     color: 0x8a8a8a, drop: { stone: 2, scrap: 1 },     hp: 40, respawn: 18000, toolTier: 1 },
-  metal:   { name: 'Metal Vein',color: 0xcc8844, drop: { metal: 2 },               hp: 60, respawn: 25000, toolTier: 2 },
-  crystal: { name: 'Crystal',   color: 0xaa66dd, drop: { vibranium: 1, electronics: 1 }, hp: 40, respawn: 30000, toolTier: 3 },
+  stone:   { name: 'Stone',     color: 0x8a8a8a, drop: { stone: 2 },               hp: 40, respawn: 18000, toolTier: 1 },
+  metal:   { name: 'Iron Vein',  color: 0xcc8844, drop: { iron_ore: 3 },           hp: 60, respawn: 25000, toolTier: 2 },
+  crystal: { name: 'Crystal',   color: 0xaa66dd, drop: { vibranium_ore: 1, copper_ore: 2 }, hp: 40, respawn: 30000, toolTier: 3 },
 };
 
 export function spawnParticles(x, y, z, color, count, ctx) {
@@ -225,6 +225,15 @@ export function spawnResourceNode(typeKey, cx, cz, ctx) {
   group.userData.hp = def.hp;
   group.userData.maxHp = def.hp;
   group.userData.respawnTimer = null;
+
+  // Populate flat hit-test array
+  group.traverse(c => {
+    if (c.isMesh && !c.userData.noHit) {
+      c.userData.resourceGroup = group;
+      ctx.resourceHitMeshes.push(c);
+    }
+  });
+
   ctx.scene.add(group);
   ctx.resourceNodes.push(group);
   return group;
@@ -286,8 +295,10 @@ export function mineResource(group, hitMesh, ctx) {
     ctx.equippedTool.durability -= 1;
     ctx.playerTools[ctx.equippedTool.key] = ctx.equippedTool.durability;
     if (ctx.equippedTool.durability <= 0) {
-      ctx.showToast(ctx.TOOLS[ctx.equippedTool.key].name + ' broke!');
-      ctx.equippedTool = null; ctx.saveInventory(); ctx.refreshHotbar();
+      const tier = ctx.TOOLS[ctx.equippedTool.key].tier || 0;
+      ctx.playerInventory.scrap = (ctx.playerInventory.scrap || 0) + tier;
+      ctx.showToast(ctx.TOOLS[ctx.equippedTool.key].name + ' broke! +' + tier + ' scrap');
+      ctx.equippedTool = null; ctx.saveInventory(); ctx.refreshHotbar(); ctx.flashHotbar();
     }
   }
 

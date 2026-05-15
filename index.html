@@ -55,20 +55,55 @@
   <div id="block-popup" popover="auto">
     <div id="bp-panel">
       <button id="bp-close">✕</button>
+
       <div id="bp-title">NEW CONSTRUCTION</div>
+      <div id="bp-tier-pips"></div>
       <div id="bp-subtitle"></div>
+
       <div id="bp-hp-section" style="display:none">
-        <div class="bp-hp-bar"><div class="bp-hp-fill" id="bp-hp-fill"></div></div>
-        <div class="bp-hp-label" id="bp-hp-label">HP 100/100</div>
+        <div class="bp-bar-track"><div class="bp-bar-fill" id="bp-hp-fill"></div></div>
+        <div class="bp-bar-label" id="bp-hp-label">HP 100/100</div>
       </div>
+
+      <div id="bp-energy-section" style="display:none">
+        <div class="bp-bar-label"><span class="bp-en-icon">⚡</span><span id="bp-energy-val">0</span> / <span id="bp-energy-max">100</span> Energy</div>
+        <div class="bp-bar-track"><div class="bp-bar-fill" id="bp-energy-fill"></div></div>
+      </div>
+
+      <div id="bp-upgrade-section" style="display:none">
+        <div id="bp-upgrade-title"></div>
+        <div id="bp-upgrade-cost"></div>
+      </div>
+
+      <div id="bp-drag-section" style="display:none">
+        <div class="section-label">INPUT SLOTS</div>
+        <div id="bp-drag-slots"></div>
+        <div id="bp-recipe-preview" style="display:none"></div>
+        <div id="bp-no-match" style="display:none">no matching recipe</div>
+        <div id="bp-drag-actions" style="display:flex;gap:6px;margin:8px 0 0">
+          <button id="bp-clear-slots" class="bp-btn" style="flex:1">EJECT</button>
+          <button id="bp-process-btn" class="bp-btn bp-btn-primary" style="flex:2;display:none">PROCESS</button>
+        </div>
+      </div>
+
+      <div id="bp-recipe-section" style="display:none">
+        <div class="section-label">RECIPES</div>
+        <div id="bp-recipe-grid"></div>
+      </div>
+
+      <div id="bp-inv-snapshot" style="display:none">
+        <div class="section-label">MATERIALS</div>
+        <div id="bp-inv-grid"></div>
+      </div>
+
       <div id="bp-build-section">
         <div class="bp-grid" id="bp-build-grid"></div>
       </div>
       <div id="bp-confirm-row" style="display:none">
         <button id="bp-build-btn">BUILD</button>
       </div>
+
       <div id="bp-action-section" style="display:none">
-        <div class="section-label" style="border-top:0;padding-top:0;">ACTIONS</div>
         <div id="bp-action-grid"></div>
       </div>
       <div id="bp-hint">ESC · Back &nbsp;&nbsp;&nbsp; Click · Select &nbsp;&nbsp;&nbsp; Enter · Build</div>
@@ -96,15 +131,18 @@
       </span>
       <span class="hint-col">
         Click building · Actions<br>
-        <span id="hint-keys">1-6</span> · Tools<br>
+        1-9 · Hotbar select<br>
         V · Camera<br>
         ESC · Back
       </span>
     </div>
-    <div id="coords">
-      <div id="pos-x">X: 0</div>
-      <div id="pos-z">Z: 0</div>
-      <div id="pos-cell">Cell: 0, 0</div>
+    <div id="info-right">
+      <div id="fps">FPS: --</div>
+      <div id="coords">
+        <div id="pos-x">X: 0</div>
+        <div id="pos-z">Z: 0</div>
+        <div id="pos-cell">Cell: 0, 0</div>
+      </div>
     </div>
   </div>
 

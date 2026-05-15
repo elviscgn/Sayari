@@ -51,14 +51,25 @@ export function buildPlayer(ctx) {
   };
 }
 
+let hf, hn, ef, enEl, sf, sn;
+function getStatEls() {
+  if (!hf) {
+    hf = document.getElementById('health-fill'); hn = document.getElementById('health-num');
+    ef = document.getElementById('energy-fill'); enEl = document.getElementById('energy-num');
+    sf = document.getElementById('stamina-fill'); sn = document.getElementById('stamina-num');
+  }
+  return [hf, hn, ef, enEl, sf, sn];
+}
+
 export function updateStatsUI(ctx) {
   const s = ctx.playerStats;
-  document.getElementById('health-fill').style.width = (s.health / s.maxHealth * 100) + '%';
-  document.getElementById('health-num').textContent = Math.round(s.health);
-  document.getElementById('energy-fill').style.width = (s.energy / s.maxEnergy * 100) + '%';
-  document.getElementById('energy-num').textContent = Math.round(s.energy);
-  document.getElementById('stamina-fill').style.width = (s.stamina / s.maxStamina * 100) + '%';
-  document.getElementById('stamina-num').textContent = Math.round(s.stamina);
+  const [hfill, hnum, efill, enEl, sfill, snum] = getStatEls();
+  hfill.style.width = (s.health / s.maxHealth * 100) + '%';
+  hnum.textContent = Math.round(s.health);
+  efill.style.width = (s.energy / s.maxEnergy * 100) + '%';
+  enEl.textContent = Math.round(s.energy);
+  sfill.style.width = (s.stamina / s.maxStamina * 100) + '%';
+  snum.textContent = Math.round(s.stamina);
 }
 
 export function drainEnergy(amount, ctx) {
@@ -87,12 +98,20 @@ export function updatePlayerMovement(dt, ctx) {
     if (k['ArrowRight'] || k['KeyD']) { mx += Math.cos(d); mz -= Math.sin(d); }
   }
 
-  const speed = 90 * dt;
   const len2 = mx * mx + mz * mz;
-  playerObj.isMoving = len2 > 0;
-  stats.isMoving = len2 > 0;
+  const isMoving = len2 > 0;
+  playerObj.isMoving = isMoving;
+  stats.isMoving = isMoving;
 
-  if (playerObj.isMoving) {
+  const sprinting = isMoving && k['Space'] && stats.stamina > 0;
+  const speedMult = sprinting ? 2.5 : 1;
+  const speed = 90 * dt * speedMult;
+
+  if (sprinting) {
+    stats.stamina = Math.max(0, stats.stamina - 18 * dt);
+  }
+
+  if (isMoving) {
     const inv = speed / Math.sqrt(len2);
     const limit = ctx.HALF - 3;
     const nx = player.position.x + mx * inv;

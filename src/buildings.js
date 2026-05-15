@@ -59,11 +59,17 @@ export const BUILD_COSTS = {
 
 export const PROCESS_RECIPES = {
   workshop: [
-    { input:{ wood:3 }, output:{ plank:1 }, energy:10, label:'Plank' },
+    { input:{ wood:3 }, output:{ coal:1 }, energy:5, label:'Coal' },
     { input:{ stone:3 }, output:{ refined_stone:1 }, energy:10, label:'R.Stone' },
-    { input:{ scrap:3 }, output:{ recycled:1 }, energy:5, label:'Recycled' },
   ],
-  lab: [
+  factory_t0: [
+    { input:{ iron_ore:3, wood:3 }, output:{ metal:1 }, energy:12, label:'Smelt Iron' },
+    { input:{ iron_ore:3, coal:1 }, output:{ metal:1 }, energy:4, label:'Smelt Iron (Coal)' },
+  ],
+  factory_t1: [
+    { input:{ scrap:3 }, output:{ metal:1 }, energy:5, label:'Recycle' },
+    { input:{ vibranium_ore:3 }, output:{ vibranium:1 }, energy:20, label:'Refine Vib.' },
+    { input:{ refined_vib:1, copper_ore:2, metal:1, coal:1 }, output:{ electronics:1 }, energy:10, label:'Make Elec.' },
     { input:{ metal:3 }, output:{ refined_metal:1 }, energy:15, label:'R.Metal' },
     { input:{ vibranium:3 }, output:{ refined_vib:1 }, energy:20, label:'R.Vib.' },
     { input:{ electronics:2 }, output:{ circuit:1 }, energy:15, label:'Circuit' },
@@ -370,13 +376,43 @@ function animatePlacement(meshes) {
 
 // ── BLOCK POPUP ──
 
+function processRecipe(recipe, ctx) {
+  if (!ctx.hasItems(recipe.input)) { ctx.sfxError(); ctx.showToast('Not enough materials'); return; }
+  if (ctx.playerStats.energy < recipe.energy) { ctx.sfxError(); ctx.showToast('Not enough energy'); return; }
+  ctx.spendItems(recipe.input); ctx.addItems(recipe.output); ctx.drainEnergy(recipe.energy);
+  ctx.sfxProcess(); ctx.saveInventory();
+  const outStr = Object.entries(recipe.output).map(([k,v]) => v+' '+ITEMS[k].name).join(' + ');
+  ctx.showToast('Processed ' + outStr);
+}
+
+function formatRecipeInput(r) {
+  return Object.entries(r.input).map(([k,v]) => k + '\u00D7' + v).join(' + ');
+}
+
+function formatRecipeOutput(r) {
+  return Object.entries(r.output).map(([k,v]) => k + '\u00D7' + v).join(' + ');
+}
+
+function recipeBtnLabel(r) {
+  return formatRecipeInput(r) + ' \u2192 ' + formatRecipeOutput(r) + ' \u26A1' + r.energy;
+}
+
+function formatRecipeCost(r) {
+  return Object.entries(r.input).map(([k,v]) => v+' '+ITEMS[k].name).join(' + ');
+}
+
+const MAX_SLOTS = 4;
+
 export function initBlockPopup(ctx) {
   ctx.actionTarget = null;
   ctx.wasJustDismissed = false;
+  ctx._dragSlots = [];
+  ctx._matchedRecipe = null;
   const bpEl = document.getElementById('block-popup');
   bpEl.addEventListener('beforetoggle', e => {
     if (!e.newState.includes('open')) {
       clearSelectionOutline(ctx); ctx.actionTarget = null; ctx.wasJustDismissed = true;
+      ctx._dragSlots = []; ctx._matchedRecipe = null;
     }
   });
   ctx.bpEl = bpEl;
@@ -391,7 +427,34 @@ export function initBlockPopup(ctx) {
   ctx.bpBuildBtn = document.getElementById('bp-build-btn');
   ctx.bpActionSection = document.getElementById('bp-action-section');
   ctx.bpActionGrid = document.getElementById('bp-action-grid');
+  ctx.bpTierBadge = document.getElementById('bp-tier-badge');
+  ctx.bpDragSection = document.getElementById('bp-drag-section');
+  ctx.bpDragSlots = document.getElementById('bp-drag-slots');
+  ctx.bpRecipePreview = document.getElementById('bp-recipe-preview');
+  ctx.bpNoMatch = document.getElementById('bp-no-match');
+  ctx.bpClearSlots = document.getElementById('bp-clear-slots');
+  ctx.bpProcessBtn = document.getElementById('bp-process-btn');
+  ctx.bpRecipeSection = document.getElementById('bp-recipe-section');
+  ctx.bpRecipeGrid = document.getElementById('bp-recipe-grid');
+  ctx.bpInvSnapshot = document.getElementById('bp-inv-snapshot');
+  ctx.bpInvGrid = document.getElementById('bp-inv-grid');
+  ctx.bpEnergyBar = document.getElementById('bp-energy-bar');
+  ctx.bpEnergyVal = document.getElementById('bp-energy-val');
+  ctx.bpEnergyMax = document.getElementById('bp-energy-max');
   document.getElementById('bp-close').addEventListener('click', () => closeBlockPopup(ctx));
+
+  ctx.bpClearSlots.addEventListener('click', e => {
+    e.stopPropagation();
+    ctx._dragSlots = [];
+    ctx._matchedRecipe = null;
+    showBlockPopup(ctx.actionTarget, ctx);
+  });
+  ctx.bpProcessBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!ctx._matchedRecipe) return;
+    processRecipe(ctx._matchedRecipe, ctx);
+    showBlockPopup(ctx.actionTarget, ctx);
+  });
 }
 
 // ── SELECTION HIGHLIGHT ──
@@ -407,11 +470,21 @@ function buildSelectionOutline(entry, ctx) {
   if (!entry || !entry.buildingMeshes) return;
   const lines = [];
   entry.buildingMeshes.forEach(m => {
-    const edges = new THREE.EdgesGeometry(m.geometry);
-    const line = new THREE.LineSegments(edges, selOutlineMat);
-    line.position.copy(m.position); line.rotation.copy(m.rotation); line.scale.copy(m.scale);
-    ctx.scene.add(line);
-    lines.push(line);
+    if (m.isGroup) {
+      const box = new THREE.Box3().setFromObject(m);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z);
+      const edges = new THREE.EdgesGeometry(boxGeo);
+      const line = new THREE.LineSegments(edges, selOutlineMat);
+      line.position.copy(center);
+      ctx.scene.add(line); lines.push(line);
+    } else if (m.geometry) {
+      const edges = new THREE.EdgesGeometry(m.geometry);
+      const line = new THREE.LineSegments(edges, selOutlineMat);
+      line.position.copy(m.position); line.rotation.copy(m.rotation); line.scale.copy(m.scale);
+      ctx.scene.add(line); lines.push(line);
+    }
   });
   ctx.selectionOutline = lines;
 }
@@ -508,6 +581,244 @@ function doBuild(entry, key, ctx) {
   ctx.resolvePlayerCollision();
 }
 
+function recipeSlotKey(itemKey) {
+  const item = ITEMS[itemKey];
+  return item && item.icon
+    ? '<img class="slot-icon" src="' + item.icon + '" alt="' + item.name + '">'
+    : '<div class="slot-icon" style="background:' + (item ? item.color : '#ccc') + ';border-radius:3px;"></div>';
+}
+
+function updateRecipeMatch(slots, entry, ctx) {
+  const tier = entry.tier || 0;
+  const recipes = [];
+  if (entry.building === 'workshop') recipes.push(...PROCESS_RECIPES.workshop);
+  if (entry.building === 'factory') {
+    recipes.push(...PROCESS_RECIPES.factory_t0);
+    if (tier >= 1) recipes.push(...PROCESS_RECIPES.factory_t1);
+  }
+  const filled = slots.filter(s => s.key);
+  let matched = null;
+  for (const r of recipes) {
+    const inputs = Object.entries(r.input);
+    if (filled.length < inputs.length) continue;
+    let ok = true;
+    for (const [ik, iv] of inputs) {
+      const slot = filled.find(s => s.key === ik);
+      if (!slot || slot.qty < iv) { ok = false; break; }
+    }
+    if (ok) { matched = r; break; }
+  }
+  ctx._matchedRecipe = matched;
+  return matched;
+}
+
+function renderRecipePreview(matched, ctx) {
+  const el = ctx.bpRecipePreview;
+  if (!matched) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.className = 'bp-recipe-btn matched';
+  el.classList.add(ctx.playerStats.energy >= matched.energy ? 'ready' : 'no-energy');
+  const parts = [];
+  for (const [ik, iv] of Object.entries(matched.input)) {
+    const item = ITEMS[ik];
+    const icon = item && item.icon ? '<img class="preview-icon" src="' + item.icon + '">' : '<span class="preview-icon" style="display:inline-block;background:'+(item?item.color:'#ccc')+';border-radius:2px;"></span>';
+    parts.push(icon + '<span class="preview-qty">\u00D7' + iv + '</span>');
+  }
+  const outParts = [];
+  for (const [ik, iv] of Object.entries(matched.output)) {
+    const item = ITEMS[ik];
+    const icon = item && item.icon ? '<img class="preview-icon" src="' + item.icon + '">' : '<span class="preview-icon" style="display:inline-block;background:'+(item?item.color:'#ccc')+';border-radius:2px;"></span>';
+    outParts.push(icon + '<span class="preview-qty">\u00D7' + iv + '</span>');
+  }
+  el.innerHTML = parts.join(' + ') + ' \u2192 ' + outParts.join(' + ') + ' \u26A1' + matched.energy;
+}
+
+function renderDragSlots(entry, ctx) {
+  const tier = entry.tier || 0;
+  const recipes = [];
+  if (entry.building === 'workshop') recipes.push(...PROCESS_RECIPES.workshop);
+  if (entry.building === 'factory') {
+    recipes.push(...PROCESS_RECIPES.factory_t0);
+    if (tier >= 1) recipes.push(...PROCESS_RECIPES.factory_t1);
+  }
+  const maxInputs = recipes.reduce((m, r) => Math.max(m, Object.keys(r.input).length), 0);
+
+  if (!ctx._dragSlots || ctx._dragSlots.length === 0) {
+    ctx._dragSlots = [];
+    for (let i = 0; i < Math.min(maxInputs, MAX_SLOTS); i++) ctx._dragSlots.push({ key: null, qty: 0 });
+  }
+
+  const container = ctx.bpDragSlots;
+  container.innerHTML = '';
+  ctx._dragSlots.forEach((slot, i) => {
+    const div = document.createElement('div');
+    div.className = 'bp-drag-slot' + (slot.key ? ' filled' : '');
+    div.dataset.idx = i;
+
+    const idxLabel = document.createElement('span');
+    idxLabel.className = 'slot-idx';
+    idxLabel.textContent = (i + 1);
+    div.appendChild(idxLabel);
+
+    if (slot.key) {
+      const item = ITEMS[slot.key];
+      div.innerHTML += recipeSlotKey(slot.key);
+      const qtyEl = document.createElement('span');
+      qtyEl.className = 'slot-qty';
+      qtyEl.textContent = slot.qty;
+      div.appendChild(qtyEl);
+
+      const adj = document.createElement('div');
+      adj.className = 'slot-adj';
+      const down = document.createElement('button');
+      down.textContent = '\u2212';
+      down.addEventListener('click', e => {
+        e.stopPropagation();
+        const total = ctx.playerInventory[slot.key] || 0;
+        const decrement = Math.max(1, Math.ceil(total / 4));
+        slot.qty = Math.max(1, slot.qty - decrement);
+        renderDragSlots(entry, ctx);
+        const matched = updateRecipeMatch(ctx._dragSlots, entry, ctx);
+        renderRecipePreview(matched, ctx);
+        renderRecipeButtons(matched, entry, ctx);
+        ctx.bpNoMatch.style.display = matched ? 'none' : (ctx._dragSlots.some(s => s.key) ? 'block' : 'none');
+        ctx.bpProcessBtn.style.display = matched ? 'block' : 'none';
+        ctx.bpProcessBtn.textContent = matched ? 'PROCESS ' + formatRecipeOutput(matched).toUpperCase() : 'PROCESS';
+      });
+      adj.appendChild(down);
+      const up = document.createElement('button');
+      up.textContent = '+';
+      up.addEventListener('click', e => {
+        e.stopPropagation();
+        const total = ctx.playerInventory[slot.key] || 0;
+        const increment = Math.max(1, Math.ceil(total / 4));
+        slot.qty = Math.min(total, slot.qty + increment);
+        renderDragSlots(entry, ctx);
+        const matched = updateRecipeMatch(ctx._dragSlots, entry, ctx);
+        renderRecipePreview(matched, ctx);
+        renderRecipeButtons(matched, entry, ctx);
+        ctx.bpNoMatch.style.display = matched ? 'none' : (ctx._dragSlots.some(s => s.key) ? 'block' : 'none');
+        ctx.bpProcessBtn.style.display = matched ? 'block' : 'none';
+        ctx.bpProcessBtn.textContent = matched ? 'PROCESS ' + formatRecipeOutput(matched).toUpperCase() : 'PROCESS';
+      });
+      adj.appendChild(up);
+      div.appendChild(adj);
+
+      div.addEventListener('dblclick', e => {
+        e.stopPropagation();
+        ctx._dragSlots[i] = { key: null, qty: 0 };
+        renderDragSlots(entry, ctx);
+        const matched = updateRecipeMatch(ctx._dragSlots, entry, ctx);
+        renderRecipePreview(matched, ctx);
+        renderRecipeButtons(matched, entry, ctx);
+        ctx.bpNoMatch.style.display = matched ? 'none' : (ctx._dragSlots.some(s => s.key) ? 'block' : 'none');
+        ctx.bpProcessBtn.style.display = matched ? 'block' : 'none';
+        ctx.bpProcessBtn.textContent = matched ? 'PROCESS ' + formatRecipeOutput(matched).toUpperCase() : 'PROCESS';
+      });
+    }
+
+    div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('dragover'); });
+    div.addEventListener('dragleave', () => div.classList.remove('dragover'));
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      div.classList.remove('dragover');
+      try {
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (data && data.key) {
+          const total = ctx.playerInventory[data.key] || 0;
+          if (total > 0) {
+            ctx._dragSlots[i] = { key: data.key, qty: Math.max(1, Math.min(total, Math.ceil(total / 2))) };
+            renderDragSlots(entry, ctx);
+            const matched = updateRecipeMatch(ctx._dragSlots, entry, ctx);
+            renderRecipePreview(matched, ctx);
+            renderRecipeButtons(matched, entry, ctx);
+            ctx.bpNoMatch.style.display = matched ? 'none' : (ctx._dragSlots.some(s => s.key) ? 'block' : 'none');
+            ctx.bpProcessBtn.style.display = matched ? 'block' : 'none';
+            ctx.bpProcessBtn.textContent = matched ? 'PROCESS ' + formatRecipeOutput(matched).toUpperCase() : 'PROCESS';
+          }
+        }
+      } catch(e) {}
+    });
+
+    container.appendChild(div);
+  });
+}
+
+function renderRecipeButtons(matched, entry, ctx) {
+  const tier = entry.tier || 0;
+  const recipes = [];
+  if (entry.building === 'workshop') recipes.push(...PROCESS_RECIPES.workshop);
+  if (entry.building === 'factory') {
+    recipes.push(...PROCESS_RECIPES.factory_t0);
+    if (tier >= 1) recipes.push(...PROCESS_RECIPES.factory_t1);
+  }
+  const grid = ctx.bpRecipeGrid;
+  grid.innerHTML = '';
+  recipes.forEach(r => {
+    const btn = document.createElement('button');
+    btn.className = 'bp-recipe-btn';
+    if (matched === r) btn.classList.add('matched');
+    const canAfford = ctx.hasItems(r.input);
+    const hasEnergy = ctx.playerStats.energy >= r.energy;
+    btn.disabled = !canAfford || !hasEnergy;
+
+    const formula = document.createElement('span');
+    formula.className = 'rec-formula';
+    formula.textContent = recipeBtnLabel(r);
+    btn.appendChild(formula);
+
+    const energy = document.createElement('span');
+    energy.className = 'rec-energy';
+    energy.textContent = '\u26A1' + r.energy;
+    btn.appendChild(energy);
+
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      processRecipe(r, ctx);
+      if (entry) showBlockPopup(entry, ctx);
+    });
+    grid.appendChild(btn);
+  });
+}
+
+function renderInvSnapshot(entry, ctx) {
+  const tier = entry.tier || 0;
+  const recipes = [];
+  if (entry.building === 'workshop') recipes.push(...PROCESS_RECIPES.workshop);
+  if (entry.building === 'factory') {
+    recipes.push(...PROCESS_RECIPES.factory_t0);
+    if (tier >= 1) recipes.push(...PROCESS_RECIPES.factory_t1);
+  }
+  const relevantKeys = new Set();
+  recipes.forEach(r => {
+    Object.keys(r.input).forEach(k => relevantKeys.add(k));
+    Object.keys(r.output).forEach(k => relevantKeys.add(k));
+  });
+  const grid = ctx.bpInvGrid;
+  grid.innerHTML = '';
+  const owned = [...relevantKeys].filter(k => (ctx.playerInventory[k] || 0) > 0);
+  if (owned.length === 0) {
+    grid.innerHTML = '<div style="font-size:8px;color:#8a7f72;text-align:center;padding:4px 0;font-weight:600;letter-spacing:0.05em;">none owned</div>';
+    return;
+  }
+  owned.forEach(key => {
+    const item = ITEMS[key];
+    const qty = ctx.playerInventory[key] || 0;
+    const chip = document.createElement('span');
+    chip.className = 'bp-inv-chip';
+    chip.draggable = true;
+    chip.style.background = `rgba(${parseInt(item.color.slice(1,3),16)},${parseInt(item.color.slice(3,5),16)},${parseInt(item.color.slice(5,7),16)},0.08)`;
+    chip.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ key, qty }));
+    });
+    const icon = item.icon
+      ? '<img class="chip-icon" src="' + item.icon + '" alt="' + item.name + '">'
+      : '<span class="chip-icon" style="display:inline-block;background:' + item.color + ';border-radius:2px;"></span>';
+    chip.innerHTML = icon + '<span style="color:' + item.color + '">' + item.name + '</span> <span class="chip-qty">' + qty + '</span>';
+    grid.appendChild(chip);
+  });
+}
+
 export function showBlockPopup(entry, ctx) {
   ctx.hoverMesh.visible = false;
   ctx.hoverOutline.visible = false;
@@ -518,10 +829,24 @@ export function showBlockPopup(entry, ctx) {
   const tiers = hasBuilding ? UPGRADE_TIERS[entry.building] : null;
   const tier = entry.tier || 0;
   const tDef = tiers ? tiers[tier] : null;
+  const buildingType = entry.building;
+  const isProcessor = buildingType === 'workshop' || buildingType === 'factory';
 
   ctx.bpSubtitleEl.textContent = 'Cell ' + entry.cx + ', ' + entry.cz;
   ctx.bpTitleEl.textContent = hasBuilding ? (tDef ? tDef.name : BUILDING_TYPES[entry.building]?.name || entry.building).toUpperCase() : 'NEW CONSTRUCTION';
 
+  // Tier badge
+  if (hasBuilding && tDef && tiers && tiers.length > 1) {
+    ctx.bpTierBadge.style.display = 'inline-block';
+    ctx.bpTierBadge.className = 't' + tier;
+    ctx.bpTierBadge.textContent = tDef.name + ' (Tier ' + (tier + 1) + '/' + tiers.length + ')';
+  } else if (hasBuilding && tDef) {
+    ctx.bpTierBadge.style.display = 'inline-block';
+    ctx.bpTierBadge.className = 't0';
+    ctx.bpTierBadge.textContent = tDef.name;
+  } else ctx.bpTierBadge.style.display = 'none';
+
+  // HP section
   if (hasBuilding) {
     ctx.bpHpSection.style.display = 'block';
     const hp = entry.hp || 0, maxHp = entry.maxHp || 100, pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
@@ -530,6 +855,30 @@ export function showBlockPopup(entry, ctx) {
     ctx.bpHpLabelEl.textContent = 'HP ' + Math.round(hp) + '/' + maxHp;
   } else ctx.bpHpSection.style.display = 'none';
 
+  // Energy bar (processor only)
+  if (hasBuilding && isProcessor) {
+    ctx.bpEnergyBar.style.display = 'block';
+    ctx.bpEnergyVal.textContent = Math.round(ctx.playerStats.energy);
+    ctx.bpEnergyMax.textContent = ctx.playerStats.maxEnergy;
+  } else ctx.bpEnergyBar.style.display = 'none';
+
+  // Drag section (workshop/factory only)
+  if (hasBuilding && isProcessor) {
+    ctx.bpDragSection.style.display = 'block';
+    if (!ctx._dragSlots || ctx._dragSlots.length === 0) {
+      ctx._dragSlots = [];
+      for (let i = 0; i < MAX_SLOTS; i++) ctx._dragSlots.push({ key: null, qty: 0 });
+    }
+    ctx.bpClearSlots.style.display = 'block';
+    renderDragSlots(entry, ctx);
+    const matched = updateRecipeMatch(ctx._dragSlots, entry, ctx);
+    renderRecipePreview(matched, ctx);
+    ctx.bpNoMatch.style.display = matched ? 'none' : (ctx._dragSlots.some(s => s.key) ? 'block' : 'none');
+    ctx.bpProcessBtn.style.display = matched ? 'block' : 'none';
+    ctx.bpProcessBtn.textContent = matched ? 'PROCESS ' + formatRecipeOutput(matched).toUpperCase() : 'PROCESS';
+  } else ctx.bpDragSection.style.display = 'none';
+
+  // Build section (new construction only)
   ctx.bpBuildSection.style.display = hasBuilding ? 'none' : 'block';
   ctx.bpConfirmRow.style.display = 'none';
   ctx.bpActionSection.style.display = hasBuilding ? 'block' : 'none';
@@ -582,6 +931,13 @@ export function showBlockPopup(entry, ctx) {
     });
   }
 
+  // Recipe section (workshop/factory only)
+  if (hasBuilding && isProcessor) {
+    ctx.bpRecipeSection.style.display = 'block';
+    renderRecipeButtons(ctx._matchedRecipe, entry, ctx);
+  } else ctx.bpRecipeSection.style.display = 'none';
+
+  // Action section
   ctx.bpActionGrid.innerHTML = '';
   if (hasBuilding) {
     const nextTier = tiers ? tiers[tier + 1] : null;
@@ -602,31 +958,22 @@ export function showBlockPopup(entry, ctx) {
     dBtn.addEventListener('click', e => { e.stopPropagation(); handleDismantle(entry, ctx); });
     ctx.bpActionGrid.appendChild(dBtn);
     const repBtn = document.createElement('button'); repBtn.className = 'bp-btn'; repBtn.textContent = 'Repair';
-    repBtn.disabled = (entry.hp || 0) >= (entry.maxHp || 100);
+    if ((entry.hp || 0) >= (entry.maxHp || 100)) {
+      repBtn.style.display = 'none';
+    } else {
+      const cost = getBuildCost(entry.building, entry.tier || 0);
+      const primary = Object.keys(cost)[0];
+      if (primary) repBtn.textContent = 'Repair (+50 HP, ' + Math.ceil(50/20) + ' ' + (ITEMS[primary]?.name?.toLowerCase() || primary) + ')';
+    }
     repBtn.addEventListener('click', e => { e.stopPropagation(); handleRepair(entry, ctx); });
     ctx.bpActionGrid.appendChild(repBtn);
-
-    if (entry.building === 'workshop' || entry.building === 'factory') {
-      const recipes = tier === 0 ? PROCESS_RECIPES.workshop : [...PROCESS_RECIPES.workshop, ...PROCESS_RECIPES.lab];
-      recipes.forEach(r => {
-        const pBtn = document.createElement('button'); pBtn.className = 'bp-btn'; pBtn.textContent = r.label;
-        const costStr = Object.entries(r.input).map(([k,v]) => v+' '+ITEMS[k].name).join(' + ');
-        const outStr = Object.entries(r.output).map(([k,v]) => v+' '+ITEMS[k].name).join(' + ');
-        pBtn.title = costStr + ' \u2192 ' + outStr + ' (' + r.energy + ' EN)';
-        pBtn.disabled = !ctx.hasItems(r.input) || ctx.playerStats.energy < r.energy;
-        pBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          if (!ctx.hasItems(r.input)) { ctx.sfxError(); ctx.showToast('Not enough materials'); return; }
-          if (ctx.playerStats.energy < r.energy) { ctx.sfxError(); ctx.showToast('Not enough energy'); return; }
-          ctx.spendItems(r.input); ctx.addItems(r.output); ctx.drainEnergy(r.energy);
-          ctx.sfxProcess(); ctx.saveInventory();
-          ctx.showToast('Processed ' + outStr);
-          showBlockPopup(entry, ctx);
-        });
-        ctx.bpActionGrid.appendChild(pBtn);
-      });
-    }
   }
+
+  // Inventory snapshot (processor only)
+  if (hasBuilding && isProcessor) {
+    ctx.bpInvSnapshot.style.display = 'block';
+    renderInvSnapshot(entry, ctx);
+  } else ctx.bpInvSnapshot.style.display = 'none';
 
   ctx.bpBuildBtn.onclick = e => {
     e.stopPropagation();
