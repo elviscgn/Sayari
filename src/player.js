@@ -48,28 +48,31 @@ export function buildPlayer(ctx) {
     staminaRegen: 8,
     lastDamageTime: 0,
     isMoving: false,
+    credits: 500,
   };
 }
 
-let hf, hn, ef, enEl, sf, sn;
+let hf, hn, ef, enEl, sf, sn, ce;
 function getStatEls() {
   if (!hf) {
     hf = document.getElementById('health-fill'); hn = document.getElementById('health-num');
     ef = document.getElementById('energy-fill'); enEl = document.getElementById('energy-num');
     sf = document.getElementById('stamina-fill'); sn = document.getElementById('stamina-num');
+    ce = document.getElementById('credits-num');
   }
-  return [hf, hn, ef, enEl, sf, sn];
+  return [hf, hn, ef, enEl, sf, sn, ce];
 }
 
 export function updateStatsUI(ctx) {
   const s = ctx.playerStats;
-  const [hfill, hnum, efill, enEl, sfill, snum] = getStatEls();
+  const [hfill, hnum, efill, enEl, sfill, snum, ce] = getStatEls();
   hfill.style.width = (s.health / s.maxHealth * 100) + '%';
   hnum.textContent = Math.round(s.health);
   efill.style.width = (s.energy / s.maxEnergy * 100) + '%';
   enEl.textContent = Math.round(s.energy);
   sfill.style.width = (s.stamina / s.maxStamina * 100) + '%';
   snum.textContent = Math.round(s.stamina);
+  if (ce) ce.textContent = Math.floor(s.credits).toLocaleString();
 }
 
 export function drainEnergy(amount, ctx) {

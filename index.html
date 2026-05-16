@@ -10,48 +10,105 @@
 </head>
 <body>
   <div id="loading">
-    <div style="font-size:14px;letter-spacing:0.5em;color:#6a5f52;text-transform:uppercase;margin-bottom:32px;font-weight:700;">Generating Terrain</div>
-    <div style="font-size:12px;letter-spacing:0.3em;color:#8a7f72;text-transform:uppercase;font-weight:600;" id="loading-name"></div>
+    <div class="loading-text">Generating Terrain</div>
+    <div class="loading-sub" id="loading-name"></div>
   </div>
 
   <div id="canvas-container"></div>
 
+  <!-- ── HUD ── -->
   <div id="hud">
-    <div id="hud-top">
-      <div class="hud-pill" id="title-block">
+    <!-- Title block: top-left -->
+    <div class="hud-panel" id="title-block">
+      <div class="title-line">
         <h1 id="planet-name-display">Planet</h1>
-        <div class="sub" id="planet-type-display">Surface</div>
+        <span class="sub" id="planet-type-display">Surface</span>
       </div>
-      <div id="hud-right">
-        <div class="hud-pill" id="status-block">
-          <div class="mode-label">Camera</div>
-          <div class="mode-value" id="mode-display">ISOMETRIC</div>
+      <div class="mode-value" id="mode-display">ISOMETRIC</div>
+    </div>
+
+    <!-- Back to space: top-center -->
+    <button id="back-to-space">Back to Space</button>
+
+    <!-- Player stats: top-right -->
+    <div class="hud-panel" id="player-stats">
+      <div class="stat-row">
+        <span class="stat-label" data-full="Health">HP</span>
+        <div class="stat-track"><div class="stat-fill health-fill" id="health-fill"></div></div>
+        <span class="stat-num" id="health-num">100</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label" data-full="Energy">EN</span>
+        <div class="stat-track"><div class="stat-fill energy-fill" id="energy-fill"></div></div>
+        <span class="stat-num" id="energy-num">100</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label" data-full="Stamina">ST</span>
+        <div class="stat-track"><div class="stat-fill stamina-fill" id="stamina-fill"></div></div>
+        <span class="stat-num" id="stamina-num">100</span>
+      </div>
+      <div class="stat-row credits-row">
+        <span class="stat-label" data-full="Credits">&cent;</span>
+        <span class="stat-num" id="credits-num">500</span>
+      </div>
+      <button id="market-toggle">Market</button>
+    </div>
+
+    <!-- Tool indicator: above hotbar -->
+    <div id="tool-indicator"></div>
+
+    <!-- Hotbar: bottom-center -->
+    <div id="hotbar"></div>
+
+    <!-- Help panel: bottom-left -->
+    <div id="help-panel">
+      <button id="help-toggle">?</button>
+      <div id="controls-hint" class="collapsed">
+        <div class="hint-col">
+          <div class="hint-category">Movement</div>
+          <div class="hint-row"><span class="hint-key">WASD</span><span class="hint-action">Move</span></div>
+          <div class="hint-row"><span class="hint-key">Space</span><span class="hint-action">Sprint</span></div>
         </div>
-        <div class="hud-pill" id="player-stats">
-          <div class="stat-row">
-            <span class="stat-label" data-full="Health">HP</span>
-            <div class="stat-track"><div class="stat-fill health-fill" id="health-fill"></div></div>
-            <span class="stat-num" id="health-num">100</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label" data-full="Energy">EN</span>
-            <div class="stat-track"><div class="stat-fill energy-fill" id="energy-fill"></div></div>
-            <span class="stat-num" id="energy-num">100</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label" data-full="Stamina">ST</span>
-            <div class="stat-track"><div class="stat-fill stamina-fill" id="stamina-fill"></div></div>
-            <span class="stat-num" id="stamina-num">100</span>
-          </div>
+        <div class="hint-col">
+          <div class="hint-category">Actions</div>
+          <div class="hint-row"><span class="hint-key">Click</span><span class="hint-action">Mine / Select</span></div>
+          <div class="hint-row"><span class="hint-key">E / C</span><span class="hint-action">Inventory</span></div>
+          <div class="hint-row"><span class="hint-key">1-9</span><span class="hint-action">Hotbar</span></div>
+        </div>
+        <div class="hint-col">
+          <div class="hint-category">Camera</div>
+          <div class="hint-row"><span class="hint-key">V</span><span class="hint-action">Toggle mode</span></div>
+          <div class="hint-row"><span class="hint-key">Scroll</span><span class="hint-action">Zoom</span></div>
+        </div>
+        <div class="hint-col">
+          <div class="hint-category">Building</div>
+          <div class="hint-row"><span class="hint-key">Click cell</span><span class="hint-action">Foundation</span></div>
+          <div class="hint-row"><span class="hint-key">Click bldg</span><span class="hint-action">Actions</span></div>
+          <div class="hint-row"><span class="hint-key">R</span><span class="hint-action">Rotate</span></div>
+        </div>
+        <div class="hint-col">
+          <div class="hint-category">System</div>
+          <div class="hint-row"><span class="hint-key">B</span><span class="hint-action">Market</span></div>
+          <div class="hint-row"><span class="hint-key">N</span><span class="hint-action">Dev panel</span></div>
+          <div class="hint-row"><span class="hint-key">M</span><span class="hint-action">Music</span></div>
+          <div class="hint-row"><span class="hint-key">ESC</span><span class="hint-action">Back to space</span></div>
         </div>
       </div>
     </div>
+
+    <!-- Debug panel: bottom-right -->
+    <div class="hud-panel" id="debug-panel">
+      <div id="fps">FPS: --</div>
+      <div id="coords">
+        <span id="pos-x">X: 0</span>
+        <span id="pos-z">Z: 0</span>
+        <span id="pos-cell">Cell: 0, 0</span>
+      </div>
+    </div>
+
   </div>
 
-  <button id="back-to-space">Back to Space</button>
-
-  <div id="tool-indicator"></div>
-  <div id="hotbar"></div>
+  <!-- ── BUILDING POPUP ── -->
 
   <div id="block-popup" popover="auto">
     <div id="bp-panel">
@@ -111,6 +168,8 @@
     </div>
   </div>
 
+  <!-- ── INVENTORY ── -->
+
   <dialog id="inventory-overlay">
     <div id="inventory-panel">
       <button id="inv-close">✕</button>
@@ -120,32 +179,129 @@
     </div>
   </dialog>
 
-  <button id="help-toggle">[?] Help</button>
+  <!-- ── DEV POPOVER ── -->
 
-  <div id="info-bar">
-    <div id="controls-hint">
-      <span class="hint-col">
-        Arrows/WASD · Move<br>
-        Click resources · Mine<br>
-        E/C · Inventory<br>
-        Click ground · Build<br>
-      </span>
-      <span class="hint-col">
-        Click building · Actions<br>
-        1-9 · Hotbar select<br>
-        V · Camera<br>
-        ESC · Back
-      </span>
-    </div>
-    <div id="info-right">
-      <div id="fps">FPS: --</div>
-      <div id="coords">
-        <div id="pos-x">X: 0</div>
-        <div id="pos-z">Z: 0</div>
-        <div id="pos-cell">Cell: 0, 0</div>
+  <dialog id="dev-popover">
+    <div id="dev-panel">
+      <div id="dev-header">
+        <div id="dev-title">MARKET DEV</div>
+        <button id="dev-close">&times;</button>
+      </div>
+      <div id="dev-body">
+        <div id="dev-controls">
+          <div class="dev-group">
+            <label class="dev-label">Traders <span id="dev-traders-val">50</span></label>
+            <input type="range" id="dev-traders" min="5" max="200" value="50">
+          </div>
+          <div class="dev-group">
+            <label class="dev-label">Base Spread <span id="dev-spread-val">0.05</span></label>
+            <input type="range" id="dev-spread" min="0.01" max="0.2" step="0.005" value="0.05">
+          </div>
+          <div class="dev-group">
+            <label class="dev-label">Trader Capital <span id="dev-capital-val">800</span></label>
+            <input type="range" id="dev-capital" min="100" max="5000" step="50" value="800">
+          </div>
+          <button id="dev-reset" class="dev-btn">Reset Market</button>
+          <div class="dev-stats">
+            <div><span class="dev-stat-label">Active Traders</span><span id="dev-stat-traders">0/0</span></div>
+            <div><span class="dev-stat-label">Total Trades</span><span id="dev-stat-trades">0</span></div>
+            <div><span class="dev-stat-label">Ticks</span><span id="dev-stat-ticks">0</span></div>
+            <div><span class="dev-stat-label">Recent Vol</span><span id="dev-stat-volume">0</span></div>
+          </div>
+        </div>
+        <div id="dev-right">
+          <div id="dev-chart-wrap">
+            <canvas id="dev-chart" width="400" height="140"></canvas>
+          </div>
+          <div class="dev-chart-select">
+            <select id="dev-chart-item" class="dev-select"></select>
+          </div>
+          <div id="dev-price-table-wrap">
+            <table id="dev-price-table">
+              <thead><tr><th>Item</th><th>Price</th><th>Chg</th><th>Base</th><th>Prem</th></tr></thead>
+              <tbody id="dev-price-tbody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  </dialog>
+
+  <!-- ── MARKET POPOVER ── -->
+
+  <dialog id="market-popover">
+    <div id="mp-panel">
+      <div id="mp-header">
+        <div id="mp-title">MARKET</div>
+        <div id="mp-credits"><span class="mp-credits-icon">&cent;</span> 0</div>
+        <button id="mp-close">&times;</button>
+      </div>
+      <div id="mp-body">
+        <div id="mp-items"></div>
+        <div id="mp-detail">
+          <div id="mp-detail-header">
+            <div id="mp-detail-name"></div>
+            <div id="mp-detail-price"></div>
+            <div id="mp-detail-base"></div>
+            <div id="mp-detail-change"></div>
+          </div>
+           <div id="mp-chart-wrap">
+            <canvas id="mp-chart" width="640" height="180"></canvas>
+          </div>
+          <div id="mp-trade">
+            <div class="mp-trade-row">
+              <span class="mp-trade-label">BUY</span>
+              <div class="mp-qty-group">
+                <input id="mp-buy-qty" type="number" min="1" value="1" class="mp-qty-input">
+                <button class="mp-btn-qty" data-side="buy" data-qty="1">1</button>
+                <button class="mp-btn-qty" data-side="buy" data-qty="10">10</button>
+                <button class="mp-btn-max" data-side="buy">MAX</button>
+              </div>
+              <span class="mp-trade-x">&times;</span>
+              <span class="mp-trade-price" id="mp-buy-price"></span>
+              <span class="mp-trade-eq">=</span>
+              <span class="mp-trade-total" id="mp-buy-total"></span>
+              <button id="mp-buy-btn" class="mp-btn-buy-action">BUY</button>
+            </div>
+            <div class="mp-trade-row">
+              <span class="mp-trade-label">SELL</span>
+              <div class="mp-qty-group">
+                <input id="mp-sell-qty" type="number" min="1" value="1" class="mp-qty-input">
+                <button class="mp-btn-qty" data-side="sell" data-qty="1">1</button>
+                <button class="mp-btn-qty" data-side="sell" data-qty="10">10</button>
+                <button class="mp-btn-max" data-side="sell">ALL</button>
+              </div>
+              <span class="mp-trade-x">&times;</span>
+              <span class="mp-trade-price" id="mp-sell-price"></span>
+              <span class="mp-trade-eq">=</span>
+              <span class="mp-trade-total" id="mp-sell-total"></span>
+              <button id="mp-sell-btn" class="mp-btn-sell-action">SELL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="mp-footer">B · Toggle &nbsp;&middot;&nbsp; Click row · Select &nbsp;&middot;&nbsp; Adjust qty & Trade</div>
+    </div>
+  </dialog>
+
+  <!-- ── COMMAND PALETTE ── -->
+
+  <dialog id="command-palette">
+    <div id="cp-panel">
+      <div id="cp-input-wrap">
+        <span id="cp-prompt">/</span>
+        <input id="cp-input" type="text" placeholder="give | sell | sellall" autocomplete="off" spellcheck="false">
+        <span id="cp-hint-shortcut">⌘`</span>
+      </div>
+      <div id="cp-suggestions"></div>
+      <div id="cp-footer">
+        <span><kbd>↵</kbd> execute</span>
+        <span><kbd>⇥</kbd> complete</span>
+        <span><kbd>↑↓</kbd> navigate</span>
+        <span><kbd>esc</kbd> close</span>
+      </div>
+    </div>
+  </dialog>
 
   <div id="toast-container"></div>
   <script type="module" src="/src/main.js"></script>

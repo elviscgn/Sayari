@@ -17,6 +17,10 @@ import { init as initHud, updateCoords } from './ui/hud.js';
 import { init as initHotbar, buildHotbar, refreshHotbar, flashHotbar } from './ui/hotbar.js';
 import { init as initInventory, openInventory, closeInventory } from './ui/inventory.js';
 import { init as initControls } from './ui/controls.js';
+import { initMarket, tickMarket, resetMarket } from './economy/market.js';
+import { init as initMarketUI, openMarket, closeMarket, renderMarket } from './ui/marketUI.js';
+import { init as initMarketDev, openDev, closeDev } from './ui/marketDev.js';
+import { init as initCommandPalette, openCommandPalette, closeCommandPalette } from './ui/commandPalette.js';
 
 // ── PLANET DATA ──
 
@@ -245,6 +249,7 @@ ctx.saveInventory = function() {
   try { localStorage.setItem('safayi_inv_' + PLANET_NAME, JSON.stringify(ctx.playerInventory)); } catch(e) {}
   try { localStorage.setItem('safayi_tools_' + PLANET_NAME, JSON.stringify(ctx.playerTools)); } catch(e) {}
   try { localStorage.setItem('safayi_equipped_' + PLANET_NAME, JSON.stringify(ctx.equippedTool)); } catch(e) {}
+  try { localStorage.setItem('safayi_credits_' + PLANET_NAME, JSON.stringify(ctx.playerStats.credits)); } catch(e) {}
 };
 
 ctx.PLAYER_RADIUS = PLAYER_RADIUS;
@@ -285,7 +290,14 @@ initHotbar(ctx);
 initInventory(ctx);
 initControls(ctx);
 initBlockPopup(ctx);
+initMarketUI(ctx);
+initMarketDev(ctx);
 initCamera(ctx);
+initCommandPalette(ctx);
+
+document.getElementById('market-toggle').addEventListener('click', () => {
+  if (ctx.market && ctx.market.open) { closeMarket(ctx); } else { openMarket(ctx); }
+});
 
 // ── INPUT ──
 
@@ -298,10 +310,29 @@ const clickMouse = new THREE.Vector2();
 const posCellEl = document.getElementById('pos-cell');
 
 document.addEventListener('keydown', e => {
-  ctx.state.keys[e.code] = true;
-  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyC','KeyE','KeyM','Space','Escape','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].includes(e.code)) e.preventDefault();
+  const cpOpen = document.getElementById('command-palette')?.open;
 
-  if (e.code === 'KeyV') { toggleMode(ctx); }
+  if (cpOpen) {
+    if (e.code === 'Backquote' && (e.metaKey || e.ctrlKey)) { openCommandPalette(); return; }
+    return;
+  }
+
+  ctx.state.keys[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyV','KeyR','KeyC','KeyE','KeyM','KeyB','KeyN','Space','Escape','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].includes(e.code)) e.preventDefault();
+
+  if (e.code === 'Backquote' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    openCommandPalette();
+    return;
+  }
+
+  if (e.code === 'KeyB') {
+    if (ctx.market && ctx.market.open) { closeMarket(ctx); } else { openMarket(ctx); }
+  }
+  if (e.code === 'KeyN') {
+    const devEl = document.getElementById('dev-popover');
+    if (devEl && devEl.open) { closeDev(ctx); } else { openDev(ctx); }
+  }
   if (e.code === 'KeyM') { ctx.toggleMusicMute(); }
   if (e.code === 'KeyE' || e.code === 'KeyC') {
     if (ctx.inventoryOpen) { closeInventory(ctx); } else { openInventory(ctx); }
@@ -473,6 +504,15 @@ function update(dt, now) {
   sun.position.set(ctx.state.shadowFollow.x + 80, 100, ctx.state.shadowFollow.z + 40);
   sun.target.updateMatrixWorld();
 
+  // Market tick + UI refresh
+  if (ctx.market) {
+    const prevTick = ctx.market.tickCount;
+    tickMarket(ctx);
+    if (ctx.market.open && ctx.market.tickCount !== prevTick) {
+      renderMarket(ctx);
+    }
+  }
+
   // Stats regen
   const stats = ctx.playerStats;
   if (now - stats.lastDamageTime > 3000) stats.health = Math.min(stats.maxHealth, stats.health + stats.healthRegen * dt);
@@ -517,6 +557,8 @@ setTimeout(() => {
   document.getElementById('loading').classList.add('hidden');
   loadInventory();
   loadBuildings(ctx);
+  initMarket(ctx);
+  try { const c = JSON.parse(localStorage.getItem('safayi_credits_' + ctx.PLANET_NAME)); if (typeof c === 'number') ctx.playerStats.credits = c; } catch(e) {}
   generateResources(ctx);
   ctx.resolvePlayerCollision();
 }, 200);
