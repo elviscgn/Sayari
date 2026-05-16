@@ -44,7 +44,7 @@ export function buildPlayer(ctx) {
     energy: 100, maxEnergy: 100,
     stamina: 100, maxStamina: 100,
     healthRegen: 1,
-    energyRegen: 5,
+    energyRegen: 0.17,
     staminaRegen: 8,
     lastDamageTime: 0,
     isMoving: false,
